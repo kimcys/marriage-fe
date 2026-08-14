@@ -1,0 +1,87 @@
+<div class="space-y-8">
+
+  <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Create a batch</h2>
+    <div class="flex flex-wrap items-end gap-3">
+      <div class="flex flex-col gap-1">
+        <label class="text-xs text-slate-500">Name</label>
+        <input
+          type="text"
+          [(ngModel)]="newBatchName"
+          placeholder="e.g. Kajang Register Vol. 12"
+          class="w-64 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+        />
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="text-xs text-slate-500">Description (optional)</label>
+        <input
+          type="text"
+          [(ngModel)]="newBatchDescription"
+          class="w-80 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+        />
+      </div>
+      <button
+        type="button"
+        class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+        [disabled]="!newBatchName.trim() || creating()"
+        (click)="createBatch()"
+      >
+        {{ creating() ? 'Creating…' : 'Create batch' }}
+      </button>
+    </div>
+  </section>
+
+  <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div class="mb-4 flex items-center justify-between">
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Batches ({{ total() }})</h2>
+      <button type="button" class="text-sm text-slate-500 hover:text-slate-800" (click)="load(offset())">Refresh</button>
+    </div>
+
+    @if (loading()) {
+      <p class="text-sm text-slate-400">Loading…</p>
+    } @else if (batches().length === 0) {
+      <p class="text-sm text-slate-400">No batches yet. Create one above to get started.</p>
+    } @else {
+      <div class="divide-y divide-slate-100">
+        @for (batch of batches(); track batch.id) {
+          <a
+            [routerLink]="['/batches', batch.id]"
+            class="flex items-center justify-between gap-4 py-3 hover:bg-slate-50"
+          >
+            <div>
+              <p class="text-sm font-medium text-slate-800">{{ batch.name }}</p>
+              @if (batch.description) {
+                <p class="text-xs text-slate-400">{{ batch.description }}</p>
+              }
+            </div>
+            <span class="rounded-full px-2.5 py-1 text-xs font-medium" [class]="statusClasses(batch.status)">
+              {{ batch.status }}
+            </span>
+          </a>
+        }
+      </div>
+
+      <div class="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+        <span class="text-xs text-slate-400">{{ rangeLabel() }}</span>
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+            [disabled]="offset() === 0"
+            (click)="previousPage()"
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+            [disabled]="!hasNextPage()"
+            (click)="nextPage()"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    }
+  </section>
+</div>

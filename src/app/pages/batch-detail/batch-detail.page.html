@@ -1,0 +1,334 @@
+<div class="space-y-8">
+
+  <a routerLink="/batches" class="text-sm text-slate-500 hover:text-slate-800">&larr; All batches</a>
+
+  @if (batch(); as b) {
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-lg font-semibold text-slate-900">{{ b.name }}</h1>
+        @if (b.description) {
+          <p class="text-sm text-slate-500">{{ b.description }}</p>
+        }
+      </div>
+      <span class="rounded-full px-2.5 py-1 text-xs font-medium" [class]="statusClasses(b.status)">{{ b.status }}</span>
+    </div>
+  }
+
+  <!-- Upload -->
+  <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Upload a document</h2>
+    <div class="flex flex-wrap items-center gap-3">
+      <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600 hover:border-slate-400">
+        <span>{{ selectedFileName() ?? 'Choose a file (JPG, PNG, PDF)' }}</span>
+        <input type="file" class="hidden" accept=".jpg,.jpeg,.png,.pdf,.tif,.tiff" (change)="onFileSelected($event)" />
+      </label>
+
+      <select [(ngModel)]="documentType" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+        <option value="HANDWRITTEN_REGISTER">Handwritten register</option>
+        <option value="TYPED_BORANG_4B">Typed Borang 4B</option>
+      </select>
+
+      <button
+        type="button"
+        class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+        [disabled]="!selectedFileName() || uploading()"
+        (click)="uploadDocument()"
+      >
+        {{ uploading() ? 'Uploading…' : 'Upload' }}
+      </button>
+    </div>
+  </section>
+
+  <!-- Jobs (virtualized: a large multi-page document can split into thousands
+       of per-page jobs, so this list is fetched incrementally and rendered
+       with cdk-virtual-scroll-viewport rather than all at once). -->
+  <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div class="mb-4 flex items-center justify-between">
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">
+        Jobs ({{ jobs().length }} loaded of {{ jobsTotal() }})
+      </h2>
+      <select
+        [(ngModel)]="jobsStatusFilter"
+        (ngModelChange)="onJobsStatusFilterChanged()"
+        class="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+      >
+        <option value="ALL">All statuses</option>
+        <option value="PENDING">Pending</option>
+        <option value="PROCESSING">Processing</option>
+        <option value="COMPLETED">Completed</option>
+        <option value="FAILED">Failed</option>
+      </select>
+    </div>
+
+    @if (jobs().length === 0) {
+      <p class="text-sm text-slate-400">No jobs match this filter.</p>
+    } @else {
+      <div class="grid grid-cols-[2fr_1fr_1fr_2fr_1fr_1fr] gap-2 border-b border-slate-200 px-2 pb-2 text-xs uppercase tracking-wide text-slate-400">
+        <span>File</span>
+        <span>Page</span>
+        <span>Status</span>
+        <span>Error</span>
+        <span></span>
+        <span></span>
+      </div>
+
+      <cdk-virtual-scroll-viewport [itemSize]="jobsRowHeight" class="h-[420px]" (scrolledIndexChange)="onScrolledIndexChanged($event)">
+        <div
+          *cdkVirtualFor="let job of jobs()"
+          class="grid grid-cols-[2fr_1fr_1fr_2fr_1fr_1fr] items-center gap-2 border-b border-slate-100 px-2 text-sm"
+          [style.height.px]="jobsRowHeight"
+        >
+          <span class="truncate">{{ job.original_filename }}</span>
+          <span>{{ job.page_number ?? '—' }}</span>
+          <span>
+            <span class="rounded-full px-2.5 py-1 text-xs font-medium" [class]="statusClasses(job.status)">{{ job.status }}</span>
+          </span>
+          <span class="truncate text-xs text-red-600">{{ job.error?.message ?? '' }}</span>
+          <span class="text-right">
+            @if (job.status === 'FAILED') {
+              <button type="button" class="text-xs font-medium text-slate-600 hover:text-slate-900" (click)="retryJob(job)">Retry</button>
+            }
+            @if (job.status === 'COMPLETED') {
+              <a [href]="downloadJobUrl(job)" class="text-xs font-medium text-emerald-600 hover:text-emerald-800">Download</a>
+            }
+          </span>
+          <span class="text-right">
+            @if (job.status === 'COMPLETED') {
+              <button type="button" class="text-xs font-medium text-slate-600 hover:text-slate-900" (click)="toggleJobRecords(job)">
+                {{ isExpanded(job.id) ? 'Hide records' : 'View records' }}
+              </button>
+            }
+          </span>
+        </div>
+      </cdk-virtual-scroll-viewport>
+
+      @if (jobsLoadingMore()) {
+        <p class="mt-2 text-center text-xs text-slate-400">Loading more jobs…</p>
+      }
+    }
+  </section>
+
+  <!-- Per-job records, loaded on demand only for expanded jobs -->
+  @for (job of jobs(); track job.id) {
+    @if (isExpanded(job.id)) {
+      <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div class="mb-4 flex items-center justify-between">
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Records — page {{ job.page_number ?? job.original_filename }}
+            @if (recordsForJob(job.id); as records) {
+              ({{ records.length }})
+            }
+          </h2>
+          @if (recordsForJob(job.id)) {
+            <button
+              type="button"
+              class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
+              [disabled]="selectedCount(job.id) === 0"
+              (click)="bulkApproveSelected(job.id)"
+            >
+              Approve selected ({{ selectedCount(job.id) }})
+            </button>
+          }
+        </div>
+
+        @if (isLoadingRecords(job.id)) {
+          <p class="text-sm text-slate-400">Loading records…</p>
+        } @else {
+          <div class="space-y-4">
+            @for (record of recordsForJob(job.id); track record.id) {
+              <ng-container
+                [ngTemplateOutlet]="recordCard"
+                [ngTemplateOutletContext]="{ $implicit: record, jobId: job.id }"
+              />
+            }
+          </div>
+        }
+      </section>
+    }
+  }
+
+  <!-- Batch-wide records review queue: paginated + status-filterable across
+       every job in the batch, instead of manually opening each job's panel
+       one at a time. -->
+  <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div class="mb-4 flex items-center justify-between">
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">
+        Review queue ({{ batchRecordsTotal() }})
+      </h2>
+      <div class="flex items-center gap-2">
+        <select
+          [(ngModel)]="batchRecordsStatusFilter"
+          (ngModelChange)="onBatchRecordsFilterChanged()"
+          class="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+        >
+          <option value="ALL">All statuses</option>
+          <option value="PENDING_REVIEW">Pending review</option>
+          <option value="APPROVED">Approved</option>
+          <option value="REJECTED">Rejected</option>
+        </select>
+        <button
+          type="button"
+          class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
+          [disabled]="batchRecordsSelectedCount() === 0"
+          (click)="bulkApproveBatchRecordsSelected()"
+        >
+          Approve selected ({{ batchRecordsSelectedCount() }})
+        </button>
+      </div>
+    </div>
+
+    @if (batchRecordsLoading()) {
+      <p class="text-sm text-slate-400">Loading…</p>
+    } @else if (batchRecords().length === 0) {
+      <p class="text-sm text-slate-400">No records match this filter.</p>
+    } @else {
+      <div class="space-y-4">
+        @for (record of batchRecords(); track record.id) {
+          <ng-container
+            [ngTemplateOutlet]="recordCard"
+            [ngTemplateOutletContext]="{ $implicit: record, jobId: null }"
+          />
+        }
+      </div>
+
+      <div class="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+        <span class="text-xs text-slate-400">{{ batchRecordsRangeLabel() }}</span>
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+            [disabled]="batchRecordsOffset() === 0"
+            (click)="batchRecordsPreviousPage()"
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+            [disabled]="!batchRecordsHasNextPage()"
+            (click)="batchRecordsNextPage()"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    }
+  </section>
+
+  <!-- Export -->
+  @if (jobs().length > 0 || exports().length > 0) {
+    <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Export</h2>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <select [(ngModel)]="exportFormat" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+          <option value="XLSX">XLSX</option>
+          <option value="CSV">CSV</option>
+        </select>
+        <button
+          type="button"
+          class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+          [disabled]="exporting()"
+          (click)="generateExport()"
+        >
+          {{ exporting() ? 'Generating…' : 'Generate export' }}
+        </button>
+      </div>
+
+      @if (exports().length > 0) {
+        <div class="mt-4 divide-y divide-slate-100">
+          @for (exportItem of exports(); track exportItem.id) {
+            <div class="flex items-center justify-between py-2 text-sm">
+              <div class="flex items-center gap-2">
+                <span class="rounded-full px-2.5 py-1 text-xs font-medium" [class]="statusClasses(exportItem.status)">{{ exportItem.status }}</span>
+                <span class="text-slate-600">{{ exportItem.format }} &middot; {{ exportItem.record_count ?? 0 }} records</span>
+              </div>
+              <div class="flex items-center gap-3">
+                @if (exportItem.status === 'COMPLETED') {
+                  <a [href]="downloadExportUrl(exportItem)" class="text-xs font-medium text-emerald-600 hover:text-emerald-800">Download</a>
+                }
+                <button type="button" class="text-xs font-medium text-red-600 hover:text-red-800" (click)="deleteExport(exportItem)">Delete</button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </section>
+  }
+</div>
+
+<!-- Shared record card template, used by both the per-job panels and the
+     batch-wide review queue -- jobId is null for the batch-wide queue. -->
+<ng-template #recordCard let-record let-jobId="jobId">
+  <div class="rounded-lg border border-slate-200 p-4">
+    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <input type="checkbox" [(ngModel)]="record.selected" [ngModelOptions]="{standalone: true}" />
+        <span class="rounded-full px-2.5 py-1 text-xs font-medium" [class]="statusClasses(record.status)">{{ record.status }}</span>
+        @if (record.confidence !== null) {
+          <span
+            class="rounded-full px-2.5 py-1 text-xs font-medium"
+            [class]="record.confidence >= 0.85 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
+          >
+            confidence {{ (record.confidence * 100).toFixed(0) }}%
+          </span>
+        }
+        <span class="text-xs text-slate-400">v{{ record.version }}</span>
+      </div>
+
+      <div class="flex items-center gap-2">
+        @if (!record.editing) {
+          <button type="button" class="text-xs font-medium text-slate-600 hover:text-slate-900" (click)="startEdit(record)">Edit</button>
+          <button type="button" class="text-xs font-medium text-emerald-600 hover:text-emerald-800" (click)="approve(jobId, record)">Approve</button>
+          <button type="button" class="text-xs font-medium text-red-600 hover:text-red-800" (click)="reject(jobId, record)">Reject</button>
+        }
+      </div>
+    </div>
+
+    @if (record.editing) {
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        @for (entry of fieldEntries(record); track entry[0]) {
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-slate-400">{{ entry[0] }}</label>
+            <input
+              type="text"
+              [(ngModel)]="record.editValues![entry[0]]"
+              [ngModelOptions]="{standalone: true}"
+              class="rounded-md border border-slate-300 px-2 py-1 text-sm"
+            />
+          </div>
+        }
+      </div>
+      <div class="mt-3 flex gap-2">
+        <button
+          type="button"
+          class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-40"
+          [disabled]="record.saving"
+          (click)="saveEdit(jobId, record)"
+        >
+          {{ record.saving ? 'Saving…' : 'Save correction' }}
+        </button>
+        <button type="button" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600" (click)="cancelEdit(record)">
+          Cancel
+        </button>
+      </div>
+    } @else {
+      <dl class="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
+        @for (entry of fieldEntries(record); track entry[0]) {
+          <div>
+            <dt class="text-xs text-slate-400">{{ entry[0] }}</dt>
+            <dd class="whitespace-pre-line text-slate-800">{{ entry[1] }}</dd>
+          </div>
+        }
+      </dl>
+    }
+
+    @if (record.validation_issues.length > 0) {
+      <div class="mt-3 flex flex-wrap gap-1.5">
+        @for (issue of record.validation_issues; track issue) {
+          <span class="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700 ring-1 ring-inset ring-amber-200">{{ issue }}</span>
+        }
+      </div>
+    }
+  </div>
+</ng-template>
