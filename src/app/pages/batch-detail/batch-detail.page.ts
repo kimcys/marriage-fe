@@ -25,6 +25,15 @@ interface EditableRecord extends RecordResponse {
   saving?: boolean;
 }
 
+type UploadStatus = 'pending' | 'uploading' | 'done' | 'error';
+
+interface PendingUpload {
+  id: number;
+  file: File;
+  status: UploadStatus;
+  errorMessage?: string;
+}
+
 type StatusFilter<T extends string> = T | 'ALL';
 
 const JOBS_PAGE_SIZE = 50;
@@ -71,13 +80,13 @@ export class BatchDetailPage implements OnInit, OnDestroy {
   protected readonly exports = signal<ExportResponse[]>([]);
   protected readonly uploading = signal(false);
   protected readonly exporting = signal(false);
-  protected readonly selectedFileName = signal<string | null>(null);
+  protected readonly pendingUploads = signal<PendingUpload[]>([]);
 
   protected documentType: DocumentType = 'HANDWRITTEN_REGISTER';
   protected exportFormat: ExportFormat = 'XLSX';
 
   private batchId!: string;
-  private selectedFile: File | null = null;
+  private nextUploadId = 1;
   private pollHandle: ReturnType<typeof setInterval> | null = null;
 
   constructor(
@@ -96,29 +105,70 @@ export class BatchDetailPage implements OnInit, OnDestroy {
     this.stopPolling();
   }
 
-  onFileSelected(event: Event): void {
+  onFilesSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const file = input.files?.[0] ?? null;
-    this.selectedFile = file;
-    this.selectedFileName.set(file?.name ?? null);
+    const files = input.files ? Array.from(input.files) : [];
+    const additions: PendingUpload[] = files.map((file) => ({
+      id: this.nextUploadId++,
+      file,
+      status: 'pending',
+    }));
+    this.pendingUploads.update((existing) => [...existing, ...additions]);
+    // Allow re-selecting the same file(s) again later (e.g. after removing
+    // one from the list) -- without this the change event won't fire twice
+    // for an identical file selection.
+    input.value = '';
   }
 
-  async uploadDocument(): Promise<void> {
-    if (!this.selectedFile) {
+  removePendingUpload(upload: PendingUpload): void {
+    this.pendingUploads.update((existing) => existing.filter((u) => u.id !== upload.id));
+  }
+
+  hasUploadableFiles(): boolean {
+    return this.pendingUploads().some((u) => u.status === 'pending' || u.status === 'error');
+  }
+
+  async uploadDocuments(): Promise<void> {
+    const toUpload = this.pendingUploads().filter((u) => u.status === 'pending' || u.status === 'error');
+    if (toUpload.length === 0) {
       return;
     }
     this.uploading.set(true);
+    let succeeded = 0;
+    let failed = 0;
     try {
-      await this.api.uploadDocument(this.batchId, this.selectedFile, this.documentType);
-      this.selectedFile = null;
-      this.selectedFileName.set(null);
+      // Uploaded one at a time, not in parallel: OCR_MAX_CONCURRENT_JOBS is
+      // typically 1, so parallel uploads wouldn't process any faster --
+      // sequential keeps per-file progress simple to follow and avoids
+      // hammering the API with a burst of simultaneous multipart uploads
+      // when someone selects a few hundred files at once.
+      for (const upload of toUpload) {
+        this.updateUpload(upload.id, { status: 'uploading', errorMessage: undefined });
+        try {
+          await this.api.uploadDocument(this.batchId, upload.file, this.documentType);
+          this.updateUpload(upload.id, { status: 'done' });
+          succeeded += 1;
+        } catch (error) {
+          const message = error instanceof ApiClientError ? error.friendlyMessage() : 'Upload failed.';
+          this.updateUpload(upload.id, { status: 'error', errorMessage: message });
+          failed += 1;
+        }
+      }
       await this.loadJobs();
       this.startPolling();
-    } catch (error) {
-      this.handleError(error);
+      if (succeeded > 0) {
+        this.toast.success(`Uploaded ${succeeded} file${succeeded === 1 ? '' : 's'}.`);
+      }
+      if (failed > 0) {
+        this.toast.error(`${failed} file${failed === 1 ? '' : 's'} failed to upload. Fix and retry below.`);
+      }
     } finally {
       this.uploading.set(false);
     }
+  }
+
+  private updateUpload(id: number, patch: Partial<PendingUpload>): void {
+    this.pendingUploads.update((existing) => existing.map((u) => (u.id === id ? { ...u, ...patch } : u)));
   }
 
   async retryJob(job: JobResponse): Promise<void> {
