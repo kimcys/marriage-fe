@@ -7,12 +7,38 @@ import { environment } from '../../environments/environment';
 const API_BASE = environment.apiBaseUrl;
 
 export type BatchStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
-export type DocumentStatus = 'UPLOADED' | 'PROCESSING' | 'PROCESSED' | 'FAILED';
-export type DocumentType = 'HANDWRITTEN_REGISTER' | 'TYPED_BORANG_4B';
+export type DocumentType =
+  | 'HANDWRITTEN_REGISTER'
+  | 'HANDWRITTEN_CERAI_LEGACY'
+  | 'HANDWRITTEN_CERAI_MODERN'
+  | 'HANDWRITTEN_RUJUK_LEGACY'
+  | 'HANDWRITTEN_RUJUK_MODERN'
+  | 'TYPED_BORANG_4B'
+  | 'TYPED_CERAI_LEGACY'
+  | 'TYPED_CERAI_MODERN'
+  | 'TYPED_RUJUK_LEGACY'
+  | 'TYPED_RUJUK_MODERN';
 export type JobStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
 export type RecordStatus = 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED';
 export type ExportStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
 export type ExportFormat = 'CSV' | 'XLSX';
+export type OneDriveSubmissionStatus = 'PENDING' | 'FETCHING' | 'FETCHED' | 'FAILED';
+
+/** Display labels for job rows -- a document's type is decided entirely by
+ * the OneDrive-link auto-classification step now, never picked by a caller,
+ * so the FE only ever needs to *display* it, not offer it as a form choice. */
+export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
+  HANDWRITTEN_REGISTER: 'Handwritten · Nikah',
+  HANDWRITTEN_CERAI_LEGACY: 'Handwritten · Cerai (legacy)',
+  HANDWRITTEN_CERAI_MODERN: 'Handwritten · Cerai (modern)',
+  HANDWRITTEN_RUJUK_LEGACY: 'Handwritten · Rujuk (legacy)',
+  HANDWRITTEN_RUJUK_MODERN: 'Handwritten · Rujuk (modern)',
+  TYPED_BORANG_4B: 'Typed · Nikah (Borang 4B)',
+  TYPED_CERAI_LEGACY: 'Typed · Cerai (legacy)',
+  TYPED_CERAI_MODERN: 'Typed · Cerai (modern)',
+  TYPED_RUJUK_LEGACY: 'Typed · Rujuk (legacy)',
+  TYPED_RUJUK_MODERN: 'Typed · Rujuk (modern)',
+};
 
 export interface Paginated<T> {
   items: T[];
@@ -31,22 +57,6 @@ export interface BatchResponse {
   updated_at: string;
   started_at: string | null;
   completed_at: string | null;
-}
-
-export interface DocumentResponse {
-  id: string;
-  batch_id: string;
-  original_filename: string;
-  safe_filename: string;
-  media_type: string;
-  size_bytes: number;
-  sha256: string;
-  storage_key: string;
-  status: DocumentStatus;
-  document_type: DocumentType;
-  page_count: number | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface JobResponse {
@@ -70,6 +80,8 @@ export interface JobResponse {
 export interface RecordResponse {
   id: string;
   job_id: string;
+  batch_id: string | null;
+  document_id: string | null;
   source_key: string;
   status: RecordStatus;
   field_values: Record<string, unknown>;
@@ -110,6 +122,23 @@ export interface ExportResponse {
   completed_at: string | null;
 }
 
+export interface SkippedFile {
+  filename: string;
+  status: string;
+}
+
+export interface OneDriveSubmissionResponse {
+  id: string;
+  batch_id: string;
+  url: string;
+  status: OneDriveSubmissionStatus;
+  skipped_files: SkippedFile[] | null;
+  created_at: string;
+  updated_at: string;
+  fetched_at: string | null;
+  error: { code: string; message: string } | null;
+}
+
 function toHttpParams(input: Record<string, string | number | boolean | undefined | null>): HttpParams {
   let params = new HttpParams();
   for (const [key, value] of Object.entries(input)) {
@@ -144,18 +173,29 @@ export class ApiService {
     return firstValueFrom(this.http.get<BatchResponse>(`${API_BASE}/batches/${batchId}`));
   }
 
-  // ---- Documents ----
+  // ---- OneDrive links ----
+  // The only ingestion path: a link is fetched in the background, every file
+  // it resolves to is auto-classified (a single link can mix handwritten/
+  // typed, Nikah/Cerai/Rujuk content), and each routable file becomes its own
+  // document + job. Posting a URL already submitted -- to this batch or any
+  // other -- returns that submission's existing state unchanged instead of
+  // re-fetching.
 
-  uploadDocument(
-    batchId: string,
-    file: File,
-    documentType: DocumentType = 'HANDWRITTEN_REGISTER',
-  ): Promise<DocumentResponse> {
-    const form = new FormData();
-    form.append('file', file);
-    form.append('document_type', documentType);
+  submitOneDriveLink(batchId: string, url: string): Promise<OneDriveSubmissionResponse> {
     return firstValueFrom(
-      this.http.post<DocumentResponse>(`${API_BASE}/batches/${batchId}/documents`, form),
+      this.http.post<OneDriveSubmissionResponse>(`${API_BASE}/batches/${batchId}/onedrive-links`, { url }),
+    );
+  }
+
+  listOneDriveLinks(
+    batchId: string,
+    limit = 20,
+    offset = 0,
+  ): Promise<Paginated<OneDriveSubmissionResponse>> {
+    return firstValueFrom(
+      this.http.get<Paginated<OneDriveSubmissionResponse>>(`${API_BASE}/batches/${batchId}/onedrive-links`, {
+        params: toHttpParams({ limit, offset }),
+      }),
     );
   }
 
@@ -196,13 +236,22 @@ export class ApiService {
   // ---- Records ----
 
   listRecords(
-    filters: { batchId?: string; status?: RecordStatus; limit?: number; offset?: number } = {},
+    filters: {
+      batchId?: string;
+      status?: RecordStatus;
+      q?: string;
+      sourceUrl?: string;
+      limit?: number;
+      offset?: number;
+    } = {},
   ): Promise<Paginated<RecordResponse>> {
     return firstValueFrom(
       this.http.get<Paginated<RecordResponse>>(`${API_BASE}/records`, {
         params: toHttpParams({
           batch_id: filters.batchId,
           status: filters.status,
+          q: filters.q,
+          source_url: filters.sourceUrl,
           limit: filters.limit ?? 20,
           offset: filters.offset ?? 0,
         }),

@@ -1,1 +1,100 @@
 @import "tailwindcss";
+
+/* Design tokens from DESIGN.md (Apple-style reference). Applied pragmatically
+   for a reviewer-facing operations dashboard rather than a marketing site:
+   flat hairline-divided sections instead of shadowed cards, and a few small
+   muted status colors added below (clearly marked) since --color-apple-blue
+   is reserved for actions only per DESIGN.md's "one color, one job" rule. */
+/* `static` forces every declared variable to always be emitted, rather than
+   Tailwind v4's default of only emitting theme variables actually reached by
+   a generated utility class -- correct for a design-token declaration file
+   meant to define the full palette/scale upfront, independent of what
+   happens to be used in templates today. */
+@theme static {
+  /* Colors -- DESIGN.md */
+  --color-apple-blue: #0071e3;
+  --color-link-blue: #0066cc;
+  --color-signal-blue: #2997ff;
+  --color-carbon: #1d1d1f;
+  --color-frost: #f5f5f7;
+  --color-ice: #f4f8fb;
+  --color-smoke: #333333;
+  --color-graphite: #474747;
+  --color-ash: #707070;
+  --color-mist: #858585;
+  --color-onyx: #000000;
+  --color-pebble: #e2e2e5;
+
+  /* DESIGN.md's Form Input / Sticky-Nav / Footer specs reference this exact
+     hairline gray repeatedly, but it's absent from the main color token
+     table -- filling that gap, not inventing a new brand color. */
+  --color-hairline: #d2d2d7;
+
+  /* Not in DESIGN.md: small, muted, low-saturation additions so job/record/
+     export status is scannable at a glance. Kept visually secondary to
+     --color-apple-blue, which stays the only color used for buttons/links. */
+  --color-success: #1d7a4c;
+  --color-success-bg: #e6f4ec;
+  --color-warning: #9a6400;
+  --color-warning-bg: #fbf1dd;
+  --color-error: #c02b0a;
+  --color-error-bg: #fbe9e5;
+
+  /* Typography -- Font Families */
+  --font-sf-pro-display: 'SF Pro Display', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sf-pro-text: 'SF Pro Text', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Typography -- Scale */
+  --text-caption: 12px;
+  --text-caption--line-height: 1.33;
+  --text-caption--letter-spacing: -0.264px;
+  --text-body-sm: 14px;
+  --text-body-sm--line-height: 1.29;
+  --text-body-sm--letter-spacing: -0.224px;
+  --text-body: 17px;
+  --text-body--line-height: 1.47;
+  --text-body--letter-spacing: -0.272px;
+  --text-subheading: 21px;
+  --text-subheading--line-height: 1.24;
+  --text-subheading--letter-spacing: -0.105px;
+  --text-heading-sm: 28px;
+  --text-heading-sm--line-height: 1.18;
+  --text-heading-sm--letter-spacing: 0.196px;
+  --text-heading: 40px;
+  --text-heading--line-height: 1.14;
+  --text-heading--letter-spacing: 0.44px;
+  --text-heading-lg: 44px;
+  --text-heading-lg--line-height: 1.18;
+  --text-heading-lg--letter-spacing: -0.44px;
+  --text-display: 56px;
+  --text-display--line-height: 1.07;
+  --text-display--letter-spacing: 0.616px;
+
+  /* Spacing: DESIGN.md's scale (4, 8, 12, 16, 20, 24, 40, 48, 56px) is
+     intentionally not redeclared here -- Tailwind v4's own default spacing
+     base unit is already 4px, so its stock numeric utilities already hit
+     every one of those exact values (p-1 = 4px, p-2 = 8px, p-3 = 12px,
+     p-4 = 16px, p-5 = 20px, p-6 = 24px, p-10 = 40px, p-12 = 48px,
+     p-14 = 56px). Redeclaring numbered spacing tokens here would collide
+     with and override Tailwind's own numeric scale (its own "spacing 4"
+     means "16px, the p-4 utility", not "4px" as DESIGN.md's token of the
+     same name means) and silently break every existing padding, gap, and
+     margin utility used across the app. */
+
+  /* Border Radius */
+  --radius-tags: 980px;
+  --radius-cards: 8px;
+  --radius-images: 8px;
+  --radius-inputs: 8px;
+  --radius-buttons: 980px;
+
+  /* Shadows -- reserved for product imagery only per DESIGN.md's Elevation
+     Philosophy; never applied to cards/buttons/panels in this app. */
+  --shadow-xl: 3px 5px 30px 0px rgba(0, 0, 0, 0.22);
+}
+
+body {
+  background-color: var(--color-frost);
+  color: var(--color-carbon);
+  font-family: var(--font-sf-pro-text);
+}

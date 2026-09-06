@@ -12,11 +12,11 @@ export class ToastContainerComponent {
   classesFor(kind: string): string {
     switch (kind) {
       case 'error':
-        return 'bg-red-600 text-white';
+        return 'bg-error text-ice';
       case 'success':
-        return 'bg-emerald-600 text-white';
+        return 'bg-success text-ice';
       default:
-        return 'bg-slate-900 text-white';
+        return 'bg-carbon text-ice';
     }
   }
 }

@@ -8,11 +8,12 @@ import { ApiClientError } from '../../core/api-error';
 import {
   ApiService,
   BatchResponse,
-  DocumentType,
   ExportFormat,
   ExportResponse,
   JobResponse,
   JobStatus,
+  OneDriveSubmissionResponse,
+  OneDriveSubmissionStatus,
   RecordResponse,
   RecordStatus,
 } from '../../services/api.service';
@@ -25,22 +26,15 @@ interface EditableRecord extends RecordResponse {
   saving?: boolean;
 }
 
-type UploadStatus = 'pending' | 'uploading' | 'done' | 'error';
-
-interface PendingUpload {
-  id: number;
-  file: File;
-  status: UploadStatus;
-  errorMessage?: string;
-}
-
 type StatusFilter<T extends string> = T | 'ALL';
 
 const JOBS_PAGE_SIZE = 50;
 const JOBS_ROW_HEIGHT = 56;
 const JOBS_LOAD_MORE_THRESHOLD = 15;
 const RECORDS_PAGE_SIZE = 20;
+const RECORDS_QUERY_DEBOUNCE_MS = 400;
 const NON_TERMINAL_JOB_STATUSES: JobStatus[] = ['PENDING', 'PROCESSING'];
+const NON_TERMINAL_SUBMISSION_STATUSES: OneDriveSubmissionStatus[] = ['PENDING', 'FETCHING'];
 
 @Component({
   selector: 'app-batch-detail',
@@ -51,6 +45,14 @@ export class BatchDetailPage implements OnInit, OnDestroy {
   protected readonly jobsRowHeight = JOBS_ROW_HEIGHT;
 
   protected readonly batch = signal<BatchResponse | null>(null);
+
+  // ---- OneDrive links: the only ingestion path. A link is fetched and every
+  // file it resolves to auto-classified in the background -- this list is
+  // that batch's submission history/status, polled (alongside jobs) only
+  // while something is still PENDING/FETCHING. ----
+  protected readonly oneDriveSubmissions = signal<OneDriveSubmissionResponse[]>([]);
+  protected readonly submittingLink = signal(false);
+  protected newOneDriveUrl = '';
 
   // ---- Jobs: virtualized + incrementally fetched, optionally status-filtered ----
   protected readonly jobs = signal<JobResponse[]>([]);
@@ -66,28 +68,28 @@ export class BatchDetailPage implements OnInit, OnDestroy {
   protected readonly jobRecords = signal<Record<string, EditableRecord[]>>({});
   protected readonly loadingRecordsForJob = signal<Set<string>>(new Set());
 
-  // ---- Batch-wide records review queue: paginated + status-filterable,
-  // using the batch_id-filtered records endpoint so a reviewer can work
-  // through "all PENDING_REVIEW records in this batch" without manually
-  // opening each job's panel one at a time. ----
+  // ---- Batch-wide records review queue: paginated + filterable (status,
+  // free-text over field values, and which OneDrive link a record came from),
+  // using the records endpoint's batch_id/q/source_url filters so a reviewer
+  // can work through "all PENDING_REVIEW records in this batch" without
+  // manually opening each job's panel one at a time. ----
   protected readonly batchRecords = signal<EditableRecord[]>([]);
   protected readonly batchRecordsTotal = signal(0);
   protected readonly batchRecordsOffset = signal(0);
   protected readonly batchRecordsLoading = signal(false);
   protected batchRecordsStatusFilter: StatusFilter<RecordStatus> = 'PENDING_REVIEW';
+  protected batchRecordsQuery = '';
+  protected batchRecordsSourceUrl = '';
   protected readonly batchRecordsPageSize = RECORDS_PAGE_SIZE;
 
   protected readonly exports = signal<ExportResponse[]>([]);
-  protected readonly uploading = signal(false);
   protected readonly exporting = signal(false);
-  protected readonly pendingUploads = signal<PendingUpload[]>([]);
 
-  protected documentType: DocumentType = 'HANDWRITTEN_REGISTER';
   protected exportFormat: ExportFormat = 'XLSX';
 
   private batchId!: string;
-  private nextUploadId = 1;
   private pollHandle: ReturnType<typeof setInterval> | null = null;
+  private queryDebounceHandle: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -103,86 +105,57 @@ export class BatchDetailPage implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.stopPolling();
+    if (this.queryDebounceHandle !== null) {
+      clearTimeout(this.queryDebounceHandle);
+    }
   }
 
-  onFilesSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const files = input.files ? Array.from(input.files) : [];
-    const additions: PendingUpload[] = files.map((file) => ({
-      id: this.nextUploadId++,
-      file,
-      status: 'pending',
-    }));
-    this.pendingUploads.update((existing) => [...existing, ...additions]);
-    // Allow re-selecting the same file(s) again later (e.g. after removing
-    // one from the list) -- without this the change event won't fire twice
-    // for an identical file selection.
-    input.value = '';
-  }
+  // ---- OneDrive links ----
 
-  removePendingUpload(upload: PendingUpload): void {
-    this.pendingUploads.update((existing) => existing.filter((u) => u.id !== upload.id));
-  }
-
-  hasUploadableFiles(): boolean {
-    return this.pendingUploads().some((u) => u.status === 'pending' || u.status === 'error');
-  }
-
-  async uploadDocuments(): Promise<void> {
-    const toUpload = this.pendingUploads().filter((u) => u.status === 'pending' || u.status === 'error');
-    if (toUpload.length === 0) {
+  async submitOneDriveLink(): Promise<void> {
+    const url = this.newOneDriveUrl.trim();
+    if (!url) {
       return;
     }
-    this.uploading.set(true);
-    let succeeded = 0;
-    let failed = 0;
+    this.submittingLink.set(true);
     try {
-      // Uploaded one at a time, not in parallel: OCR_MAX_CONCURRENT_JOBS is
-      // typically 1, so parallel uploads wouldn't process any faster --
-      // sequential keeps per-file progress simple to follow and avoids
-      // hammering the API with a burst of simultaneous multipart uploads
-      // when someone selects a few hundred files at once.
-      for (const upload of toUpload) {
-        this.updateUpload(upload.id, { status: 'uploading', errorMessage: undefined });
-        try {
-          await this.api.uploadDocument(this.batchId, upload.file, this.documentType);
-          this.updateUpload(upload.id, { status: 'done' });
-          succeeded += 1;
-        } catch (error) {
-          const message = error instanceof ApiClientError ? error.friendlyMessage() : 'Upload failed.';
-          this.updateUpload(upload.id, { status: 'error', errorMessage: message });
-          failed += 1;
-        }
-      }
+      await this.api.submitOneDriveLink(this.batchId, url);
+      this.newOneDriveUrl = '';
+      await this.loadOneDriveSubmissions();
       await this.loadJobs();
       this.startPolling();
-      if (succeeded > 0) {
-        this.toast.success(`Uploaded ${succeeded} file${succeeded === 1 ? '' : 's'}.`);
-      }
-      if (failed > 0) {
-        this.toast.error(`${failed} file${failed === 1 ? '' : 's'} failed to upload. Fix and retry below.`);
-      }
-    } finally {
-      this.uploading.set(false);
-    }
-  }
-
-  private updateUpload(id: number, patch: Partial<PendingUpload>): void {
-    this.pendingUploads.update((existing) => existing.map((u) => (u.id === id ? { ...u, ...patch } : u)));
-  }
-
-  async retryJob(job: JobResponse): Promise<void> {
-    try {
-      await this.api.retryJob(job.id);
-      await this.refreshLoadedJobs();
-      this.startPolling();
+      this.toast.success('Link submitted.');
     } catch (error) {
       this.handleError(error);
+    } finally {
+      this.submittingLink.set(false);
     }
   }
 
-  downloadJobUrl(job: JobResponse): string {
-    return this.api.downloadJobUrl(job.id);
+  private async loadOneDriveSubmissions(): Promise<void> {
+    const page = await this.api.listOneDriveLinks(this.batchId, 50, 0);
+    this.oneDriveSubmissions.set(page.items);
+  }
+
+  /** Only re-fetches (and re-syncs jobs) while at least one submission is
+   * still PENDING/FETCHING -- a settled batch stops touching this endpoint
+   * on every poll tick, same principle as the jobs list below. */
+  private async refreshSubmissionsIfPending(): Promise<void> {
+    const pendingBefore = this.oneDriveSubmissions().filter((s) =>
+      NON_TERMINAL_SUBMISSION_STATUSES.includes(s.status),
+    ).length;
+    if (pendingBefore === 0) {
+      return;
+    }
+    await this.loadOneDriveSubmissions();
+    const pendingAfter = this.oneDriveSubmissions().filter((s) =>
+      NON_TERMINAL_SUBMISSION_STATUSES.includes(s.status),
+    ).length;
+    if (pendingAfter < pendingBefore) {
+      // At least one submission just finished fetching+classifying -- any
+      // routable files it found became new jobs, not yet in the loaded list.
+      await this.loadJobs();
+    }
   }
 
   // ---- Jobs: virtualized + incrementally fetched ----
@@ -268,10 +241,24 @@ export class BatchDetailPage implements OnInit, OnDestroy {
     }
   }
 
-  // ---- Adaptive polling: only keep polling while something loaded is
-  // still PENDING/PROCESSING. A batch that has fully settled (every loaded
-  // job terminal, and nothing left unfetched) stops polling entirely
-  // instead of hitting the API forever at a fixed interval. ----
+  async retryJob(job: JobResponse): Promise<void> {
+    try {
+      await this.api.retryJob(job.id);
+      await this.refreshLoadedJobs();
+      this.startPolling();
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  downloadJobUrl(job: JobResponse): string {
+    return this.api.downloadJobUrl(job.id);
+  }
+
+  // ---- Adaptive polling: only keep polling while something loaded is still
+  // PENDING/PROCESSING (a job) or PENDING/FETCHING (a OneDrive submission).
+  // A batch that has fully settled stops polling entirely instead of
+  // hitting the API forever at a fixed interval. ----
 
   private startPolling(): void {
     this.stopPolling();
@@ -287,10 +274,14 @@ export class BatchDetailPage implements OnInit, OnDestroy {
 
   private async pollTick(): Promise<void> {
     await this.refreshLoadedJobs();
-    const settled =
+    await this.refreshSubmissionsIfPending();
+    const jobsSettled =
       this.jobs().length >= this.jobsTotal() &&
       !this.jobs().some((job) => NON_TERMINAL_JOB_STATUSES.includes(job.status));
-    if (settled) {
+    const submissionsSettled = !this.oneDriveSubmissions().some((s) =>
+      NON_TERMINAL_SUBMISSION_STATUSES.includes(s.status),
+    );
+    if (jobsSettled && submissionsSettled) {
       this.stopPolling();
     }
   }
@@ -343,6 +334,18 @@ export class BatchDetailPage implements OnInit, OnDestroy {
 
   async onBatchRecordsFilterChanged(): Promise<void> {
     await this.loadBatchRecords(0);
+  }
+
+  /** Debounced: fires ~400ms after the reviewer stops typing, rather than
+   * re-querying on every keystroke. */
+  onBatchRecordsQueryChanged(): void {
+    if (this.queryDebounceHandle !== null) {
+      clearTimeout(this.queryDebounceHandle);
+    }
+    this.queryDebounceHandle = setTimeout(() => {
+      this.queryDebounceHandle = null;
+      void this.loadBatchRecords(0);
+    }, RECORDS_QUERY_DEBOUNCE_MS);
   }
 
   batchRecordsHasNextPage(): boolean {
@@ -398,6 +401,8 @@ export class BatchDetailPage implements OnInit, OnDestroy {
       const page = await this.api.listRecords({
         batchId: this.batchId,
         status: this.batchRecordsStatusFilter === 'ALL' ? undefined : this.batchRecordsStatusFilter,
+        q: this.batchRecordsQuery.trim() || undefined,
+        sourceUrl: this.batchRecordsSourceUrl || undefined,
         limit: this.batchRecordsPageSize,
         offset,
       });
@@ -548,21 +553,24 @@ export class BatchDetailPage implements OnInit, OnDestroy {
   statusClasses(status: string): string {
     switch (status) {
       case 'COMPLETED':
+      case 'FETCHED':
       case 'APPROVED':
-        return 'bg-emerald-100 text-emerald-700';
+        return 'bg-success-bg text-success';
       case 'FAILED':
       case 'REJECTED':
-        return 'bg-red-100 text-red-700';
+        return 'bg-error-bg text-error';
       case 'PROCESSING':
-        return 'bg-amber-100 text-amber-700';
+      case 'FETCHING':
+        return 'bg-warning-bg text-warning';
       default:
-        return 'bg-slate-100 text-slate-600';
+        return 'bg-pebble text-carbon';
     }
   }
 
   private async loadAll(): Promise<void> {
     try {
       this.batch.set(await this.api.getBatch(this.batchId));
+      await this.loadOneDriveSubmissions();
       await this.loadJobs();
       await this.loadBatchRecords(0);
       await this.refreshExports();
