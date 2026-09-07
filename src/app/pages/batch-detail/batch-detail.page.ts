@@ -20,10 +20,12 @@ import {
 import { ToastService } from '../../services/toast.service';
 
 interface EditableRecord extends RecordResponse {
-  editing?: boolean;
-  editValues?: Record<string, string>;
-  selected?: boolean;
-  saving?: boolean;
+  // Only one cell per record is ever open for editing at a time -- a
+  // missing/flagged field's cell starts already "open" (see isEditingCell),
+  // an already-filled cell opens on click.
+  editingField?: string | null;
+  editingValue?: string;
+  savingField?: string | null;
 }
 
 type StatusFilter<T extends string> = T | 'ALL';
@@ -135,6 +137,20 @@ export class BatchDetailPage implements OnInit, OnDestroy {
   private async loadOneDriveSubmissions(): Promise<void> {
     const page = await this.api.listOneDriveLinks(this.batchId, 50, 0);
     this.oneDriveSubmissions.set(page.items);
+  }
+
+  /** A plain repeat submit of the same link is a no-op once it's FAILED --
+   * the backend's URL-dedup returns the existing row unchanged. This is the
+   * only way to actually re-run a failed link's fetch+classify. */
+  async retryOneDriveSubmission(submission: OneDriveSubmissionResponse): Promise<void> {
+    try {
+      await this.api.retryOneDriveSubmission(this.batchId, submission.id);
+      await this.loadOneDriveSubmissions();
+      this.startPolling();
+      this.toast.success('Retrying link.');
+    } catch (error) {
+      this.handleError(error);
+    }
   }
 
   /** Only re-fetches (and re-syncs jobs) while at least one submission is
@@ -373,28 +389,6 @@ export class BatchDetailPage implements OnInit, OnDestroy {
     }
   }
 
-  batchRecordsSelectedCount(): number {
-    return this.batchRecords().filter((r) => r.selected).length;
-  }
-
-  async bulkApproveBatchRecordsSelected(): Promise<void> {
-    const selectedIds = this.batchRecords()
-      .filter((r) => r.selected)
-      .map((r) => r.id);
-    if (selectedIds.length === 0) {
-      return;
-    }
-    try {
-      const result = await this.api.bulkApproveRecords(selectedIds);
-      for (const updated of result.items) {
-        this.replaceBatchRecord(updated);
-      }
-      this.toast.success(`Approved ${result.items.length} record(s).`);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
   private async loadBatchRecords(offset: number): Promise<void> {
     this.batchRecordsLoading.set(true);
     try {
@@ -420,78 +414,95 @@ export class BatchDetailPage implements OnInit, OnDestroy {
     this.batchRecords.update((existing) => existing.map((r) => (r.id === updated.id ? { ...updated } : r)));
   }
 
-  // ---- Shared record actions (used by both the per-job panels and the
-  // batch-wide review queue) ----
+  // ---- Shared record table (used by both the per-job panels and the
+  // batch-wide review queue): no separate edit/approve/reject workflow --
+  // status is purely computed from missing_fields, and a reviewer adjusts a
+  // value directly in its cell. A missing/flagged field's cell starts
+  // already open as an input (highlighted); an already-filled cell opens on
+  // click. ----
 
-  startEdit(record: EditableRecord): void {
-    record.editing = true;
-    record.editValues = Object.fromEntries(
-      Object.entries(record.field_values).map(([key, value]) => [key, value == null ? '' : String(value)]),
-    );
+  /** Sorted union of every field key across the given records (field_values
+   * keys plus any still-missing ones) -- a batch can mix Nikah/Cerai/Rujuk
+   * records with different field sets on the same loaded page. */
+  recordColumns(records: EditableRecord[]): string[] {
+    const columns = new Set<string>();
+    for (const record of records) {
+      for (const key of Object.keys(record.field_values)) {
+        columns.add(key);
+      }
+      for (const key of record.missing_fields) {
+        columns.add(key);
+      }
+    }
+    return Array.from(columns).sort();
   }
 
-  cancelEdit(record: EditableRecord): void {
-    record.editing = false;
-    record.editValues = undefined;
+  cellValue(record: EditableRecord, column: string): string {
+    const value = record.field_values[column];
+    return value == null ? '' : String(value);
   }
 
-  async saveEdit(jobId: string | null, record: EditableRecord): Promise<void> {
-    if (!record.editValues) {
+  isMissingCell(record: EditableRecord, column: string): boolean {
+    return record.missing_fields.includes(column);
+  }
+
+  /** A missing/flagged field's cell is always an input; any other cell only
+   * becomes one once explicitly clicked into (startCellEdit). */
+  isEditingCell(record: EditableRecord, column: string): boolean {
+    return this.isMissingCell(record, column) || record.editingField === column;
+  }
+
+  startCellEdit(record: EditableRecord, column: string): void {
+    if (this.isEditingCell(record, column)) {
       return;
     }
-    record.saving = true;
+    record.editingField = column;
+    record.editingValue = this.cellValue(record, column);
+  }
+
+  /** The cell's live input value: whatever's been typed for the column
+   * currently being edited, or the stored value otherwise (e.g. a
+   * not-yet-touched missing-field cell, which starts blank). */
+  cellInputValue(record: EditableRecord, column: string): string {
+    return record.editingField === column ? (record.editingValue ?? '') : this.cellValue(record, column);
+  }
+
+  onCellChange(record: EditableRecord, column: string, value: string): void {
+    record.editingField = column;
+    record.editingValue = value;
+  }
+
+  async saveCell(jobId: string | null, record: EditableRecord, column: string): Promise<void> {
+    if (record.editingField !== column || record.savingField === column) {
+      // Nothing was actually typed for this cell (e.g. tabbed past an
+      // untouched missing-field cell), or a save for it is already in flight.
+      return;
+    }
+    const value = record.editingValue ?? '';
+    if (!this.isMissingCell(record, column) && value === this.cellValue(record, column)) {
+      // Unchanged -- close the cell without a redundant PATCH.
+      record.editingField = null;
+      return;
+    }
+    record.savingField = column;
     try {
-      const updated = await this.api.updateRecord(record.id, record.version, record.editValues, 'manual correction');
+      const updated = await this.api.updateRecord(record.id, record.version, { [column]: value }, 'manual correction');
       this.applyUpdatedRecord(jobId, updated);
-      this.toast.success('Correction saved.');
+      this.toast.success('Saved.');
     } catch (error) {
       this.handleError(error);
     } finally {
-      record.saving = false;
+      record.savingField = null;
+      record.editingField = null;
     }
   }
 
-  async approve(jobId: string | null, record: EditableRecord): Promise<void> {
-    try {
-      const updated = await this.api.approveRecord(record.id, record.version);
-      this.applyUpdatedRecord(jobId, updated);
-    } catch (error) {
-      this.handleError(error);
-    }
+  recordStatusLabel(record: EditableRecord): string {
+    return record.missing_fields.length > 0 ? 'Needs review' : 'Complete';
   }
 
-  async reject(jobId: string | null, record: EditableRecord): Promise<void> {
-    try {
-      const updated = await this.api.rejectRecord(record.id, record.version);
-      this.applyUpdatedRecord(jobId, updated);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
-  async bulkApproveSelected(jobId: string): Promise<void> {
-    const records = this.jobRecords()[jobId] ?? [];
-    const selectedIds = records.filter((r) => r.selected).map((r) => r.id);
-    if (selectedIds.length === 0) {
-      return;
-    }
-    try {
-      const result = await this.api.bulkApproveRecords(selectedIds);
-      for (const updated of result.items) {
-        this.replaceRecord(jobId, updated);
-      }
-      this.toast.success(`Approved ${result.items.length} record(s).`);
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
-
-  selectedCount(jobId: string): number {
-    return (this.jobRecords()[jobId] ?? []).filter((r) => r.selected).length;
-  }
-
-  fieldEntries(record: EditableRecord): Array<[string, unknown]> {
-    return Object.entries(record.field_values);
+  recordStatusClasses(record: EditableRecord): string {
+    return record.missing_fields.length > 0 ? 'bg-warning-bg text-warning' : 'bg-success-bg text-success';
   }
 
   private applyUpdatedRecord(jobId: string | null, updated: RecordResponse): void {

@@ -87,6 +87,7 @@ export interface RecordResponse {
   field_values: Record<string, unknown>;
   confidence: number | null;
   validation_issues: string[];
+  missing_fields: string[];
   reviewed_by: string | null;
   reviewed_at: string | null;
   version: number;
@@ -196,6 +197,18 @@ export class ApiService {
       this.http.get<Paginated<OneDriveSubmissionResponse>>(`${API_BASE}/batches/${batchId}/onedrive-links`, {
         params: toHttpParams({ limit, offset }),
       }),
+    );
+  }
+
+  /** Re-runs a FAILED submission's fetch+classify from scratch. A plain
+   * repeat POST of the same link won't do this -- the backend's URL-dedup
+   * returns the existing (failed) row unchanged and triggers no new fetch. */
+  retryOneDriveSubmission(batchId: string, submissionId: string): Promise<OneDriveSubmissionResponse> {
+    return firstValueFrom(
+      this.http.post<OneDriveSubmissionResponse>(
+        `${API_BASE}/batches/${batchId}/onedrive-links/${submissionId}/retry`,
+        {},
+      ),
     );
   }
 

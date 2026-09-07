@@ -46,9 +46,16 @@
           <div class="py-3">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <span class="truncate text-body-sm text-carbon" [title]="submission.url">{{ submission.url }}</span>
-              <span class="rounded-tags px-2.5 py-1 text-caption font-medium" [class]="statusClasses(submission.status)">
-                {{ submission.status }}
-              </span>
+              <div class="flex items-center gap-2">
+                <span class="rounded-tags px-2.5 py-1 text-caption font-medium" [class]="statusClasses(submission.status)">
+                  {{ submission.status }}
+                </span>
+                @if (submission.status === 'FAILED') {
+                  <button type="button" class="text-caption text-link-blue hover:underline" (click)="retryOneDriveSubmission(submission)">
+                    Retry
+                  </button>
+                }
+              </div>
             </div>
             @if (submission.error) {
               <p class="mt-1 text-caption text-error">{{ submission.error.message }}</p>
@@ -144,36 +151,20 @@
   @for (job of jobs(); track job.id) {
     @if (isExpanded(job.id)) {
       <section class="space-y-4 border-t border-hairline pt-8">
-        <div class="flex items-center justify-between">
-          <h2 class="text-caption font-semibold uppercase tracking-wide text-ash">
-            Records — page {{ job.page_number ?? job.original_filename }}
-            @if (recordsForJob(job.id); as records) {
-              ({{ records.length }})
-            }
-          </h2>
-          @if (recordsForJob(job.id)) {
-            <button
-              type="button"
-              class="rounded-buttons bg-apple-blue px-3 py-1.5 text-caption text-ice disabled:cursor-not-allowed disabled:opacity-40"
-              [disabled]="selectedCount(job.id) === 0"
-              (click)="bulkApproveSelected(job.id)"
-            >
-              Approve selected ({{ selectedCount(job.id) }})
-            </button>
+        <h2 class="text-caption font-semibold uppercase tracking-wide text-ash">
+          Records — page {{ job.page_number ?? job.original_filename }}
+          @if (recordsForJob(job.id); as records) {
+            ({{ records.length }})
           }
-        </div>
+        </h2>
 
         @if (isLoadingRecords(job.id)) {
           <p class="text-body-sm text-ash">Loading records…</p>
-        } @else {
-          <div class="space-y-4">
-            @for (record of recordsForJob(job.id); track record.id) {
-              <ng-container
-                [ngTemplateOutlet]="recordCard"
-                [ngTemplateOutletContext]="{ $implicit: record, jobId: job.id }"
-              />
-            }
-          </div>
+        } @else if (recordsForJob(job.id); as records) {
+          <ng-container
+            [ngTemplateOutlet]="recordsTable"
+            [ngTemplateOutletContext]="{ $implicit: records, jobId: job.id }"
+          />
         }
       </section>
     }
@@ -193,8 +184,8 @@
           type="text"
           [(ngModel)]="batchRecordsQuery"
           (ngModelChange)="onBatchRecordsQueryChanged()"
-          placeholder="Search name, IC number…"
-          class="w-48 rounded-inputs border border-hairline bg-frost px-2 py-1 text-caption text-carbon focus:outline-none focus:ring-2 focus:ring-apple-blue"
+          placeholder="Search any field (Bil, IC, name)…"
+          class="w-56 rounded-inputs border border-hairline bg-frost px-2 py-1 text-caption text-carbon focus:outline-none focus:ring-2 focus:ring-apple-blue"
         />
         <select
           [(ngModel)]="batchRecordsSourceUrl"
@@ -212,18 +203,10 @@
           class="rounded-inputs border border-hairline bg-frost px-2 py-1 text-caption text-carbon focus:outline-none focus:ring-2 focus:ring-apple-blue"
         >
           <option value="ALL">All statuses</option>
-          <option value="PENDING_REVIEW">Pending review</option>
-          <option value="APPROVED">Approved</option>
+          <option value="PENDING_REVIEW">Needs review</option>
+          <option value="APPROVED">Complete</option>
           <option value="REJECTED">Rejected</option>
         </select>
-        <button
-          type="button"
-          class="rounded-buttons bg-apple-blue px-3 py-1.5 text-caption text-ice disabled:cursor-not-allowed disabled:opacity-40"
-          [disabled]="batchRecordsSelectedCount() === 0"
-          (click)="bulkApproveBatchRecordsSelected()"
-        >
-          Approve selected ({{ batchRecordsSelectedCount() }})
-        </button>
       </div>
     </div>
 
@@ -232,14 +215,10 @@
     } @else if (batchRecords().length === 0) {
       <p class="text-body-sm text-ash">No records match this filter.</p>
     } @else {
-      <div class="space-y-4">
-        @for (record of batchRecords(); track record.id) {
-          <ng-container
-            [ngTemplateOutlet]="recordCard"
-            [ngTemplateOutletContext]="{ $implicit: record, jobId: null }"
-          />
-        }
-      </div>
+      <ng-container
+        [ngTemplateOutlet]="recordsTable"
+        [ngTemplateOutletContext]="{ $implicit: batchRecords(), jobId: null }"
+      />
 
       <div class="mt-4 flex items-center justify-between border-t border-hairline pt-3">
         <span class="text-caption text-ash">{{ batchRecordsRangeLabel() }}</span>
@@ -310,78 +289,64 @@
   }
 </div>
 
-<!-- Shared record card template, used by both the per-job panels and the
-     batch-wide review queue -- jobId is null for the batch-wide queue. -->
-<ng-template #recordCard let-record let-jobId="jobId">
-  <div class="rounded-cards border border-hairline p-4">
-    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-      <div class="flex items-center gap-2">
-        <input type="checkbox" [(ngModel)]="record.selected" [ngModelOptions]="{standalone: true}" />
-        <span class="rounded-tags px-2.5 py-1 text-caption font-medium" [class]="statusClasses(record.status)">{{ record.status }}</span>
-        @if (record.confidence !== null) {
-          <span
-            class="rounded-tags px-2.5 py-1 text-caption font-medium"
-            [class]="record.confidence >= 0.85 ? 'bg-success-bg text-success' : 'bg-warning-bg text-warning'"
-          >
-            confidence {{ (record.confidence * 100).toFixed(0) }}%
-          </span>
+<!-- Shared record table, used by both the per-job panels and the batch-wide
+     review queue -- jobId is null for the batch-wide queue. No separate
+     edit/approve/reject workflow: status is purely computed from
+     missing_fields, and a flagged field's cell is already an editable
+     input so a reviewer can fill it in directly. Wrapped so a wide table
+     (many mixed Nikah/Cerai/Rujuk columns) scrolls horizontally instead of
+     forcing the page itself to. -->
+<ng-template #recordsTable let-records let-jobId="jobId">
+  <div class="overflow-x-auto rounded-cards border border-hairline">
+    <table class="w-full min-w-max border-collapse text-body-sm">
+      <thead>
+        <tr class="border-b border-hairline bg-pebble text-caption uppercase tracking-wide text-ash">
+          <th class="whitespace-nowrap px-3 py-2 text-left">Status</th>
+          @for (column of recordColumns(records); track column) {
+            <th class="whitespace-nowrap px-3 py-2 text-left">{{ column }}</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (record of records; track record.id) {
+          <tr class="border-b border-hairline">
+            <td class="whitespace-nowrap px-3 py-2 align-top">
+              <span class="rounded-tags px-2.5 py-1 text-caption font-medium" [class]="recordStatusClasses(record)">
+                {{ recordStatusLabel(record) }}
+              </span>
+              @if (record.validation_issues.length > 0) {
+                <div class="mt-1 flex flex-wrap gap-1">
+                  @for (issue of record.validation_issues; track issue) {
+                    <span class="rounded-tags bg-warning-bg px-1.5 py-0.5 text-caption text-warning" [title]="issue">{{ issue }}</span>
+                  }
+                </div>
+              }
+            </td>
+            @for (column of recordColumns(records); track column) {
+              <td class="min-w-[9rem] px-3 py-2 align-top">
+                @if (isEditingCell(record, column)) {
+                  <input
+                    type="text"
+                    [ngModel]="cellInputValue(record, column)"
+                    (ngModelChange)="onCellChange(record, column, $event)"
+                    (blur)="saveCell(jobId, record, column)"
+                    (keydown.enter)="$any($event.target).blur()"
+                    [ngModelOptions]="{standalone: true}"
+                    [class]="isMissingCell(record, column)
+                      ? 'w-full rounded-inputs border border-warning bg-warning-bg px-2 py-1 text-body-sm text-carbon focus:outline-none focus:ring-2 focus:ring-apple-blue'
+                      : 'w-full rounded-inputs border border-hairline bg-frost px-2 py-1 text-body-sm text-carbon focus:outline-none focus:ring-2 focus:ring-apple-blue'"
+                  />
+                } @else {
+                  <span
+                    class="block cursor-text whitespace-pre-line rounded-inputs px-1 py-1 text-carbon hover:bg-pebble"
+                    (click)="startCellEdit(record, column)"
+                  >{{ cellValue(record, column) }}</span>
+                }
+              </td>
+            }
+          </tr>
         }
-        <span class="text-caption text-ash">v{{ record.version }}</span>
-      </div>
-
-      <div class="flex items-center gap-3">
-        @if (!record.editing) {
-          <button type="button" class="text-caption text-link-blue hover:underline" (click)="startEdit(record)">Edit</button>
-          <button type="button" class="text-caption text-success hover:underline" (click)="approve(jobId, record)">Approve</button>
-          <button type="button" class="text-caption text-error hover:underline" (click)="reject(jobId, record)">Reject</button>
-        }
-      </div>
-    </div>
-
-    @if (record.editing) {
-      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        @for (entry of fieldEntries(record); track entry[0]) {
-          <div class="flex flex-col gap-1">
-            <label class="text-caption text-ash">{{ entry[0] }}</label>
-            <input
-              type="text"
-              [(ngModel)]="record.editValues![entry[0]]"
-              [ngModelOptions]="{standalone: true}"
-              class="rounded-inputs border border-hairline bg-frost px-2 py-1 text-body-sm text-carbon focus:outline-none focus:ring-2 focus:ring-apple-blue"
-            />
-          </div>
-        }
-      </div>
-      <div class="mt-3 flex gap-2">
-        <button
-          type="button"
-          class="rounded-buttons bg-apple-blue px-3 py-1.5 text-caption text-ice disabled:opacity-40"
-          [disabled]="record.saving"
-          (click)="saveEdit(jobId, record)"
-        >
-          {{ record.saving ? 'Saving…' : 'Save correction' }}
-        </button>
-        <button type="button" class="rounded-buttons border border-link-blue px-3 py-1.5 text-caption text-link-blue" (click)="cancelEdit(record)">
-          Cancel
-        </button>
-      </div>
-    } @else {
-      <dl class="grid grid-cols-2 gap-x-6 gap-y-1 text-body-sm sm:grid-cols-3">
-        @for (entry of fieldEntries(record); track entry[0]) {
-          <div>
-            <dt class="text-caption text-ash">{{ entry[0] }}</dt>
-            <dd class="whitespace-pre-line text-carbon">{{ entry[1] }}</dd>
-          </div>
-        }
-      </dl>
-    }
-
-    @if (record.validation_issues.length > 0) {
-      <div class="mt-3 flex flex-wrap gap-1.5">
-        @for (issue of record.validation_issues; track issue) {
-          <span class="rounded-tags bg-warning-bg px-2 py-0.5 text-caption text-warning">{{ issue }}</span>
-        }
-      </div>
-    }
+      </tbody>
+    </table>
   </div>
 </ng-template>
