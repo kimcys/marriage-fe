@@ -20,6 +20,7 @@ export type DocumentType =
   | 'TYPED_RUJUK_MODERN';
 export type JobStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
 export type RecordStatus = 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED';
+export type RecordType = 'NIKAH' | 'CERAI' | 'RUJUK';
 export type ExportStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
 export type ExportFormat = 'CSV' | 'XLSX';
 export type OneDriveSubmissionStatus = 'PENDING' | 'FETCHING' | 'FETCHED' | 'FAILED';
@@ -174,6 +175,12 @@ export class ApiService {
     return firstValueFrom(this.http.get<BatchResponse>(`${API_BASE}/batches/${batchId}`));
   }
 
+  /** Deletes the batch and everything scoped to it -- documents, jobs,
+   * records, OneDrive submissions, exports -- irreversibly. */
+  deleteBatch(batchId: string): Promise<void> {
+    return firstValueFrom(this.http.delete<void>(`${API_BASE}/batches/${batchId}`));
+  }
+
   // ---- OneDrive links ----
   // The only ingestion path: a link is fetched in the background, every file
   // it resolves to is auto-classified (a single link can mix handwritten/
@@ -182,10 +189,18 @@ export class ApiService {
   // other -- returns that submission's existing state unchanged instead of
   // re-fetching.
 
-  submitOneDriveLink(batchId: string, url: string): Promise<OneDriveSubmissionResponse> {
-    return firstValueFrom(
-      this.http.post<OneDriveSubmissionResponse>(`${API_BASE}/batches/${batchId}/onedrive-links`, { url }),
+  /** The backend returns 202 for a genuinely new submission and 200 when
+   * the URL was already submitted (to this batch or any other) and nothing
+   * new was triggered -- `isNew` surfaces that distinction so the caller
+   * can tell "just started processing" apart from "already tracked, this
+   * did nothing." */
+  async submitOneDriveLink(batchId: string, url: string): Promise<{ submission: OneDriveSubmissionResponse; isNew: boolean }> {
+    const response = await firstValueFrom(
+      this.http.post<OneDriveSubmissionResponse>(`${API_BASE}/batches/${batchId}/onedrive-links`, { url }, {
+        observe: 'response',
+      }),
     );
+    return { submission: response.body!, isNew: response.status === 202 };
   }
 
   listOneDriveLinks(
@@ -254,6 +269,7 @@ export class ApiService {
       status?: RecordStatus;
       q?: string;
       sourceUrl?: string;
+      recordType?: RecordType;
       limit?: number;
       offset?: number;
     } = {},
@@ -265,6 +281,7 @@ export class ApiService {
           status: filters.status,
           q: filters.q,
           source_url: filters.sourceUrl,
+          record_type: filters.recordType,
           limit: filters.limit ?? 20,
           offset: filters.offset ?? 0,
         }),
@@ -289,6 +306,10 @@ export class ApiService {
 
   getRecord(recordId: string): Promise<RecordResponse> {
     return firstValueFrom(this.http.get<RecordResponse>(`${API_BASE}/records/${recordId}`));
+  }
+
+  deleteRecord(recordId: string): Promise<void> {
+    return firstValueFrom(this.http.delete<void>(`${API_BASE}/records/${recordId}`));
   }
 
   updateRecord(

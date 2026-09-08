@@ -10,7 +10,10 @@
           <p class="text-body-sm text-ash">{{ b.description }}</p>
         }
       </div>
-      <span class="rounded-tags px-2.5 py-1 text-caption font-medium" [class]="statusClasses(b.status)">{{ b.status }}</span>
+      <div class="flex items-center gap-3">
+        <span class="rounded-tags px-2.5 py-1 text-caption font-medium" [class]="statusClasses(b.status)">{{ b.status }}</span>
+        <button type="button" class="text-caption text-error hover:underline" (click)="deleteBatch()">Delete batch</button>
+      </div>
     </div>
   }
 
@@ -39,6 +42,14 @@
         {{ submittingLink() ? 'Submitting…' : 'Submit link' }}
       </button>
     </div>
+
+    @if (activeSubmissionsCount() > 0) {
+      <div class="flex items-center gap-2 rounded-inputs bg-warning-bg px-3 py-2 text-caption text-warning">
+        <span class="inline-block h-2 w-2 animate-pulse rounded-full bg-warning"></span>
+        {{ activeSubmissionsCount() }} link(s) downloading and classifying — this can take a few minutes for
+        many files. Jobs will appear below once files are routed.
+      </div>
+    }
 
     @if (oneDriveSubmissions().length > 0) {
       <div class="divide-y divide-hairline">
@@ -99,7 +110,11 @@
       </select>
     </div>
 
-    @if (jobs().length === 0) {
+    @if (jobs().length === 0 && activeSubmissionsCount() > 0) {
+      <p class="text-body-sm text-ash">
+        Waiting for the link above to finish downloading and classifying — jobs will appear here once files are routed.
+      </p>
+    } @else if (jobs().length === 0) {
       <p class="text-body-sm text-ash">No jobs match this filter.</p>
     } @else {
       <div class="grid grid-cols-[2fr_1fr_1fr_2fr_1fr_1fr] gap-2 border-b border-hairline px-2 pb-2 text-caption uppercase tracking-wide text-ash">
@@ -161,9 +176,10 @@
         @if (isLoadingRecords(job.id)) {
           <p class="text-body-sm text-ash">Loading records…</p>
         } @else if (recordsForJob(job.id); as records) {
-          <ng-container
-            [ngTemplateOutlet]="recordsTable"
-            [ngTemplateOutletContext]="{ $implicit: records, jobId: job.id }"
+          <app-records-table
+            [records]="records"
+            (recordUpdated)="onRecordUpdated($event)"
+            (recordDeleted)="onRecordDeleted($event)"
           />
         }
       </section>
@@ -215,9 +231,10 @@
     } @else if (batchRecords().length === 0) {
       <p class="text-body-sm text-ash">No records match this filter.</p>
     } @else {
-      <ng-container
-        [ngTemplateOutlet]="recordsTable"
-        [ngTemplateOutletContext]="{ $implicit: batchRecords(), jobId: null }"
+      <app-records-table
+        [records]="batchRecords()"
+        (recordUpdated)="onRecordUpdated($event)"
+        (recordDeleted)="onRecordDeleted($event)"
       />
 
       <div class="mt-4 flex items-center justify-between border-t border-hairline pt-3">
@@ -288,65 +305,3 @@
     </section>
   }
 </div>
-
-<!-- Shared record table, used by both the per-job panels and the batch-wide
-     review queue -- jobId is null for the batch-wide queue. No separate
-     edit/approve/reject workflow: status is purely computed from
-     missing_fields, and a flagged field's cell is already an editable
-     input so a reviewer can fill it in directly. Wrapped so a wide table
-     (many mixed Nikah/Cerai/Rujuk columns) scrolls horizontally instead of
-     forcing the page itself to. -->
-<ng-template #recordsTable let-records let-jobId="jobId">
-  <div class="overflow-x-auto rounded-cards border border-hairline">
-    <table class="w-full min-w-max border-collapse text-body-sm">
-      <thead>
-        <tr class="border-b border-hairline bg-pebble text-caption uppercase tracking-wide text-ash">
-          <th class="whitespace-nowrap px-3 py-2 text-left">Status</th>
-          @for (column of recordColumns(records); track column) {
-            <th class="whitespace-nowrap px-3 py-2 text-left">{{ column }}</th>
-          }
-        </tr>
-      </thead>
-      <tbody>
-        @for (record of records; track record.id) {
-          <tr class="border-b border-hairline">
-            <td class="whitespace-nowrap px-3 py-2 align-top">
-              <span class="rounded-tags px-2.5 py-1 text-caption font-medium" [class]="recordStatusClasses(record)">
-                {{ recordStatusLabel(record) }}
-              </span>
-              @if (record.validation_issues.length > 0) {
-                <div class="mt-1 flex flex-wrap gap-1">
-                  @for (issue of record.validation_issues; track issue) {
-                    <span class="rounded-tags bg-warning-bg px-1.5 py-0.5 text-caption text-warning" [title]="issue">{{ issue }}</span>
-                  }
-                </div>
-              }
-            </td>
-            @for (column of recordColumns(records); track column) {
-              <td class="min-w-[9rem] px-3 py-2 align-top">
-                @if (isEditingCell(record, column)) {
-                  <input
-                    type="text"
-                    [ngModel]="cellInputValue(record, column)"
-                    (ngModelChange)="onCellChange(record, column, $event)"
-                    (blur)="saveCell(jobId, record, column)"
-                    (keydown.enter)="$any($event.target).blur()"
-                    [ngModelOptions]="{standalone: true}"
-                    [class]="isMissingCell(record, column)
-                      ? 'w-full rounded-inputs border border-warning bg-warning-bg px-2 py-1 text-body-sm text-carbon focus:outline-none focus:ring-2 focus:ring-apple-blue'
-                      : 'w-full rounded-inputs border border-hairline bg-frost px-2 py-1 text-body-sm text-carbon focus:outline-none focus:ring-2 focus:ring-apple-blue'"
-                  />
-                } @else {
-                  <span
-                    class="block cursor-text whitespace-pre-line rounded-inputs px-1 py-1 text-carbon hover:bg-pebble"
-                    (click)="startCellEdit(record, column)"
-                  >{{ cellValue(record, column) }}</span>
-                }
-              </td>
-            }
-          </tr>
-        }
-      </tbody>
-    </table>
-  </div>
-</ng-template>

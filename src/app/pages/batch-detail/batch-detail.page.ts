@@ -1,9 +1,9 @@
 import { ScrollingModule } from '@angular/cdk/scrolling';
-import { NgTemplateOutlet } from '@angular/common';
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
+import { EditableRecord, RecordsTableComponent } from '../../components/records-table/records-table.component';
 import { ApiClientError } from '../../core/api-error';
 import {
   ApiService,
@@ -19,15 +19,6 @@ import {
 } from '../../services/api.service';
 import { ToastService } from '../../services/toast.service';
 
-interface EditableRecord extends RecordResponse {
-  // Only one cell per record is ever open for editing at a time -- a
-  // missing/flagged field's cell starts already "open" (see isEditingCell),
-  // an already-filled cell opens on click.
-  editingField?: string | null;
-  editingValue?: string;
-  savingField?: string | null;
-}
-
 type StatusFilter<T extends string> = T | 'ALL';
 
 const JOBS_PAGE_SIZE = 50;
@@ -40,7 +31,7 @@ const NON_TERMINAL_SUBMISSION_STATUSES: OneDriveSubmissionStatus[] = ['PENDING',
 
 @Component({
   selector: 'app-batch-detail',
-  imports: [FormsModule, RouterLink, ScrollingModule, NgTemplateOutlet],
+  imports: [FormsModule, RouterLink, ScrollingModule, RecordsTableComponent],
   templateUrl: './batch-detail.page.html',
 })
 export class BatchDetailPage implements OnInit, OnDestroy {
@@ -95,6 +86,7 @@ export class BatchDetailPage implements OnInit, OnDestroy {
 
   constructor(
     private readonly route: ActivatedRoute,
+    private readonly router: Router,
     private readonly api: ApiService,
     private readonly toast: ToastService,
   ) {}
@@ -112,6 +104,23 @@ export class BatchDetailPage implements OnInit, OnDestroy {
     }
   }
 
+  async deleteBatch(): Promise<void> {
+    const current = this.batch();
+    if (!current) {
+      return;
+    }
+    if (!confirm(`Delete "${current.name}"? This removes every document, job, and record in it. This cannot be undone.`)) {
+      return;
+    }
+    try {
+      await this.api.deleteBatch(this.batchId);
+      this.toast.success('Batch deleted.');
+      await this.router.navigate(['/batches']);
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
   // ---- OneDrive links ----
 
   async submitOneDriveLink(): Promise<void> {
@@ -121,12 +130,19 @@ export class BatchDetailPage implements OnInit, OnDestroy {
     }
     this.submittingLink.set(true);
     try {
-      await this.api.submitOneDriveLink(this.batchId, url);
+      const { submission, isNew } = await this.api.submitOneDriveLink(this.batchId, url);
       this.newOneDriveUrl = '';
       await this.loadOneDriveSubmissions();
       await this.loadJobs();
       this.startPolling();
-      this.toast.success('Link submitted.');
+      // A duplicate submit (same URL already tracked) returns 200 and
+      // triggers no new fetch -- say so explicitly, since the POST itself
+      // succeeding either way gave no visible sign of that difference.
+      if (isNew) {
+        this.toast.success('Link submitted — processing in the background.');
+      } else {
+        this.toast.info(`This link is already tracked (status: ${submission.status}) — nothing new was started.`);
+      }
     } catch (error) {
       this.handleError(error);
     } finally {
@@ -137,6 +153,14 @@ export class BatchDetailPage implements OnInit, OnDestroy {
   private async loadOneDriveSubmissions(): Promise<void> {
     const page = await this.api.listOneDriveLinks(this.batchId, 50, 0);
     this.oneDriveSubmissions.set(page.items);
+  }
+
+  /** How many of this batch's submissions are still being fetched/classified
+   * -- drives the "still processing" banner near the submit form, since the
+   * POST itself returns almost instantly and gives no sense of the actual
+   * (multi-minute, for many files) background work still running. */
+  activeSubmissionsCount(): number {
+    return this.oneDriveSubmissions().filter((s) => NON_TERMINAL_SUBMISSION_STATUSES.includes(s.status)).length;
   }
 
   /** A plain repeat submit of the same link is a no-op once it's FAILED --
@@ -414,117 +438,42 @@ export class BatchDetailPage implements OnInit, OnDestroy {
     this.batchRecords.update((existing) => existing.map((r) => (r.id === updated.id ? { ...updated } : r)));
   }
 
-  // ---- Shared record table (used by both the per-job panels and the
-  // batch-wide review queue): no separate edit/approve/reject workflow --
-  // status is purely computed from missing_fields, and a reviewer adjusts a
-  // value directly in its cell. A missing/flagged field's cell starts
-  // already open as an input (highlighted); an already-filled cell opens on
-  // click. ----
-
-  /** Sorted union of every field key across the given records (field_values
-   * keys plus any still-missing ones) -- a batch can mix Nikah/Cerai/Rujuk
-   * records with different field sets on the same loaded page. */
-  recordColumns(records: EditableRecord[]): string[] {
-    const columns = new Set<string>();
-    for (const record of records) {
-      for (const key of Object.keys(record.field_values)) {
-        columns.add(key);
+  /** RecordsTableComponent already updated its own bound array in place --
+   * this only needs to sync the record into whichever OTHER list(s) might
+   * also hold a separate object instance for the same row (a per-job panel
+   * and the batch-wide queue are fetched independently, so the same DB row
+   * can be two distinct JS objects if both happen to be open at once). */
+  onRecordUpdated(updated: RecordResponse): void {
+    this.jobRecords.update((existing) => {
+      let changed = false;
+      const next: Record<string, EditableRecord[]> = {};
+      for (const [jobId, records] of Object.entries(existing)) {
+        if (records.some((r) => r.id === updated.id)) {
+          changed = true;
+          next[jobId] = records.map((r) => (r.id === updated.id ? { ...updated } : r));
+        } else {
+          next[jobId] = records;
+        }
       }
-      for (const key of record.missing_fields) {
-        columns.add(key);
-      }
-    }
-    return Array.from(columns).sort();
-  }
-
-  cellValue(record: EditableRecord, column: string): string {
-    const value = record.field_values[column];
-    return value == null ? '' : String(value);
-  }
-
-  isMissingCell(record: EditableRecord, column: string): boolean {
-    return record.missing_fields.includes(column);
-  }
-
-  /** A missing/flagged field's cell is always an input; any other cell only
-   * becomes one once explicitly clicked into (startCellEdit). */
-  isEditingCell(record: EditableRecord, column: string): boolean {
-    return this.isMissingCell(record, column) || record.editingField === column;
-  }
-
-  startCellEdit(record: EditableRecord, column: string): void {
-    if (this.isEditingCell(record, column)) {
-      return;
-    }
-    record.editingField = column;
-    record.editingValue = this.cellValue(record, column);
-  }
-
-  /** The cell's live input value: whatever's been typed for the column
-   * currently being edited, or the stored value otherwise (e.g. a
-   * not-yet-touched missing-field cell, which starts blank). */
-  cellInputValue(record: EditableRecord, column: string): string {
-    return record.editingField === column ? (record.editingValue ?? '') : this.cellValue(record, column);
-  }
-
-  onCellChange(record: EditableRecord, column: string, value: string): void {
-    record.editingField = column;
-    record.editingValue = value;
-  }
-
-  async saveCell(jobId: string | null, record: EditableRecord, column: string): Promise<void> {
-    if (record.editingField !== column || record.savingField === column) {
-      // Nothing was actually typed for this cell (e.g. tabbed past an
-      // untouched missing-field cell), or a save for it is already in flight.
-      return;
-    }
-    const value = record.editingValue ?? '';
-    if (!this.isMissingCell(record, column) && value === this.cellValue(record, column)) {
-      // Unchanged -- close the cell without a redundant PATCH.
-      record.editingField = null;
-      return;
-    }
-    record.savingField = column;
-    try {
-      const updated = await this.api.updateRecord(record.id, record.version, { [column]: value }, 'manual correction');
-      this.applyUpdatedRecord(jobId, updated);
-      this.toast.success('Saved.');
-    } catch (error) {
-      this.handleError(error);
-    } finally {
-      record.savingField = null;
-      record.editingField = null;
-    }
-  }
-
-  recordStatusLabel(record: EditableRecord): string {
-    return record.missing_fields.length > 0 ? 'Needs review' : 'Complete';
-  }
-
-  recordStatusClasses(record: EditableRecord): string {
-    return record.missing_fields.length > 0 ? 'bg-warning-bg text-warning' : 'bg-success-bg text-success';
-  }
-
-  private applyUpdatedRecord(jobId: string | null, updated: RecordResponse): void {
-    if (jobId !== null) {
-      this.replaceRecord(jobId, updated);
-    }
+      return changed ? next : existing;
+    });
     if (this.batchRecords().some((r) => r.id === updated.id)) {
       this.replaceBatchRecord(updated);
     }
   }
 
-  private replaceRecord(jobId: string, updated: RecordResponse): void {
+  onRecordDeleted(recordId: string): void {
     this.jobRecords.update((existing) => {
-      const records = existing[jobId];
-      if (!records) {
-        return existing;
+      const next: Record<string, EditableRecord[]> = {};
+      for (const [jobId, records] of Object.entries(existing)) {
+        next[jobId] = records.filter((r) => r.id !== recordId);
       }
-      return {
-        ...existing,
-        [jobId]: records.map((r) => (r.id === updated.id ? { ...updated } : r)),
-      };
+      return next;
     });
+    if (this.batchRecords().some((r) => r.id === recordId)) {
+      this.batchRecords.update((existing) => existing.filter((r) => r.id !== recordId));
+      this.batchRecordsTotal.update((total) => Math.max(0, total - 1));
+    }
   }
 
   // ---- Export ----
