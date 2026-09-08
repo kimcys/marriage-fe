@@ -5,6 +5,7 @@
     <thead>
       <tr class="border-b border-hairline bg-pebble text-caption uppercase tracking-wide text-ash">
         <th class="whitespace-nowrap px-3 py-2 text-left">Status</th>
+        <th class="whitespace-nowrap px-3 py-2 text-left">File</th>
         @for (column of recordColumns(); track column) {
           <th class="whitespace-nowrap px-3 py-2 text-left">{{ column }}</th>
         }
@@ -24,6 +25,21 @@
                   <span class="rounded-tags bg-warning-bg px-1.5 py-0.5 text-caption text-warning" [title]="issue">{{ issue }}</span>
                 }
               </div>
+            }
+          </td>
+          <td class="min-w-[9rem] px-3 py-2 align-top">
+            @if (hasSourceFile(record)) {
+              <a
+                [href]="sourceFileUrl(record)"
+                target="_blank"
+                rel="noopener"
+                class="text-caption text-link-blue hover:underline"
+                [title]="record.original_filename ?? 'View source file'"
+              >
+                {{ record.original_filename ?? 'View file' }}
+              </a>
+            } @else {
+              <span class="text-caption text-ash">—</span>
             }
           </td>
           @for (column of recordColumns(); track column) {

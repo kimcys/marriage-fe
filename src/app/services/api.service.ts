@@ -89,6 +89,7 @@ export interface RecordResponse {
   confidence: number | null;
   validation_issues: string[];
   missing_fields: string[];
+  original_filename: string | null;
   reviewed_by: string | null;
   reviewed_at: string | null;
   version: number;
@@ -259,6 +260,13 @@ export class ApiService {
 
   downloadJobUrl(jobId: string): string {
     return `${API_BASE}/jobs/${jobId}/download`;
+  }
+
+  /** The original source file (PDF/image) a record's values were OCR'd
+   * from -- lets a reviewer open it to check the extracted data against
+   * the actual scanned page. */
+  documentDownloadUrl(batchId: string, documentId: string): string {
+    return `${API_BASE}/batches/${batchId}/documents/${documentId}/download`;
   }
 
   // ---- Records ----

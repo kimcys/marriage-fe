@@ -57,7 +57,9 @@ export class BatchDetailPage implements OnInit, OnDestroy {
   // never accumulated into one unbounded flat array. A document that splits
   // into thousands of per-page jobs must not force the browser to hold
   // every page's records in memory at once.
-  protected readonly expandedJobIds = signal<Set<string>>(new Set());
+  // Accordion-style: only one job's records panel is ever open at a time --
+  // opening a different job's panel closes whichever one was open before.
+  protected readonly expandedJobId = signal<string | null>(null);
   protected readonly jobRecords = signal<Record<string, EditableRecord[]>>({});
   protected readonly loadingRecordsForJob = signal<Set<string>>(new Set());
 
@@ -270,7 +272,7 @@ export class BatchDetailPage implements OnInit, OnDestroy {
       for (const job of page.items) {
         if (
           job.status === 'COMPLETED' &&
-          this.expandedJobIds().has(job.id) &&
+          this.expandedJobId() === job.id &&
           this.jobRecords()[job.id] === undefined
         ) {
           void this.loadRecordsForJob(job.id);
@@ -329,7 +331,7 @@ export class BatchDetailPage implements OnInit, OnDestroy {
   // ---- Records: on-demand per job ----
 
   isExpanded(jobId: string): boolean {
-    return this.expandedJobIds().has(jobId);
+    return this.expandedJobId() === jobId;
   }
 
   recordsForJob(jobId: string): EditableRecord[] | undefined {
@@ -341,14 +343,11 @@ export class BatchDetailPage implements OnInit, OnDestroy {
   }
 
   toggleJobRecords(job: JobResponse): void {
-    const expanded = new Set(this.expandedJobIds());
-    if (expanded.has(job.id)) {
-      expanded.delete(job.id);
-      this.expandedJobIds.set(expanded);
+    if (this.expandedJobId() === job.id) {
+      this.expandedJobId.set(null);
       return;
     }
-    expanded.add(job.id);
-    this.expandedJobIds.set(expanded);
+    this.expandedJobId.set(job.id);
     if (this.jobRecords()[job.id] === undefined) {
       void this.loadRecordsForJob(job.id);
     }

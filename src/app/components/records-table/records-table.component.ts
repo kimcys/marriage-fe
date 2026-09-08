@@ -119,6 +119,14 @@ export class RecordsTableComponent {
     }
   }
 
+  hasSourceFile(record: EditableRecord): boolean {
+    return !!record.batch_id && !!record.document_id;
+  }
+
+  sourceFileUrl(record: EditableRecord): string {
+    return this.api.documentDownloadUrl(record.batch_id!, record.document_id!);
+  }
+
   async deleteRecord(record: EditableRecord): Promise<void> {
     if (!confirm('Delete this record? This cannot be undone.')) {
       return;
