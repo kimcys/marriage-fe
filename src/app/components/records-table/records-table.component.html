@@ -19,7 +19,11 @@
             <span class="rounded-tags px-2.5 py-1 text-caption font-medium" [class]="recordStatusClasses(record)">
               {{ recordStatusLabel(record) }}
             </span>
-            @if (record.validation_issues.length > 0) {
+            @if (record.missing_fields.length > 0 && record.validation_issues.length > 0) {
+              <!-- Only shown while still "Needs review" -- once every
+                   flagged field is filled in, these diagnostic notes from
+                   the original OCR pass are stale and would otherwise
+                   contradict the "Complete" pill above. -->
               <div class="mt-1 flex flex-wrap gap-1">
                 @for (issue of record.validation_issues; track issue) {
                   <span class="rounded-tags bg-warning-bg px-1.5 py-0.5 text-caption text-warning" [title]="issue">{{ issue }}</span>
