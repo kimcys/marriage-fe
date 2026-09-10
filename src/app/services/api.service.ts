@@ -188,13 +188,15 @@ export class ApiService {
   // typed, Nikah/Cerai/Rujuk content), and each routable file becomes its own
   // document + job. Posting a URL already submitted -- to this batch or any
   // other -- returns that submission's existing state unchanged instead of
-  // re-fetching.
+  // re-fetching, unless it previously failed, in which case reposting it
+  // retries the fetch (the same effect as retryOneDriveSubmission below).
 
-  /** The backend returns 202 for a genuinely new submission and 200 when
-   * the URL was already submitted (to this batch or any other) and nothing
-   * new was triggered -- `isNew` surfaces that distinction so the caller
-   * can tell "just started processing" apart from "already tracked, this
-   * did nothing." */
+  /** The backend returns 202 when the fetch actually started -- a genuinely
+   * new submission, or a previously-FAILED one auto-retried by reposting
+   * its URL -- and 200 when the URL was already submitted (to this batch or
+   * any other) and still in flight or already fetched, so nothing new was
+   * triggered. `isNew` surfaces that distinction so the caller can tell
+   * "processing (again)" apart from "already tracked, this did nothing." */
   async submitOneDriveLink(batchId: string, url: string): Promise<{ submission: OneDriveSubmissionResponse; isNew: boolean }> {
     const response = await firstValueFrom(
       this.http.post<OneDriveSubmissionResponse>(`${API_BASE}/batches/${batchId}/onedrive-links`, { url }, {
@@ -225,6 +227,15 @@ export class ApiService {
         `${API_BASE}/batches/${batchId}/onedrive-links/${submissionId}/retry`,
         {},
       ),
+    );
+  }
+
+  /** Deletes one OneDrive link and everything it caused to be ingested --
+   * its documents, jobs, and records -- irreversibly. The batch itself and
+   * anything ingested by its other links are untouched. */
+  deleteOneDriveSubmission(batchId: string, submissionId: string): Promise<void> {
+    return firstValueFrom(
+      this.http.delete<void>(`${API_BASE}/batches/${batchId}/onedrive-links/${submissionId}`),
     );
   }
 

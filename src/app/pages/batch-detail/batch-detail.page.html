@@ -23,7 +23,8 @@
     <p class="text-body-sm text-ash">
       Paste a OneDrive share link. Every file it resolves to is auto-classified in the background
       (a single link may mix handwritten/typed and Nikah/Cerai/Rujuk content) and routed to its own job.
-      A link already submitted returns its current state unchanged — nothing is re-fetched.
+      A link already submitted returns its current state unchanged — nothing is re-fetched — unless it
+      previously failed, in which case resubmitting it retries the fetch automatically.
     </p>
     <div class="flex flex-wrap items-center gap-3">
       <input
@@ -66,6 +67,9 @@
                     Retry
                   </button>
                 }
+                <button type="button" class="text-caption text-error hover:underline" (click)="deleteOneDriveSubmission(submission)">
+                  Delete
+                </button>
               </div>
             </div>
             @if (submission.error) {

@@ -179,6 +179,30 @@ export class BatchDetailPage implements OnInit, OnDestroy {
     }
   }
 
+  /** Deletes a link and everything it ingested -- documents, jobs, records
+   * -- so the batch's job list and records queue can both change as a
+   * result; refreshed here alongside the submissions list itself, same as
+   * a completed submission's side effects are picked up in pollTick. */
+  async deleteOneDriveSubmission(submission: OneDriveSubmissionResponse): Promise<void> {
+    if (
+      !confirm(
+        `Delete this link? This removes every document, job, and record it produced. This cannot be undone.\n\n${submission.url}`,
+      )
+    ) {
+      return;
+    }
+    try {
+      await this.api.deleteOneDriveSubmission(this.batchId, submission.id);
+      await this.loadOneDriveSubmissions();
+      await this.loadJobs();
+      await this.loadBatchRecords(0);
+      this.batch.set(await this.api.getBatch(this.batchId));
+      this.toast.success('Link deleted.');
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
   /** Only re-fetches (and re-syncs jobs) while at least one submission is
    * still PENDING/FETCHING -- a settled batch stops touching this endpoint
    * on every poll tick, same principle as the jobs list below. */
