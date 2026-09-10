@@ -520,6 +520,7 @@ export class BatchDetailPage implements OnInit, OnDestroy {
         return 'bg-error-bg text-error';
       case 'PROCESSING':
       case 'FETCHING':
+      case 'REVIEW_REQUIRED':
         return 'bg-warning-bg text-warning';
       default:
         return 'bg-pebble text-carbon';

@@ -137,6 +137,7 @@ export class BatchListPage implements OnInit, OnDestroy {
       case 'FAILED':
         return 'bg-error-bg text-error';
       case 'PROCESSING':
+      case 'REVIEW_REQUIRED':
         return 'bg-warning-bg text-warning';
       default:
         return 'bg-pebble text-carbon';

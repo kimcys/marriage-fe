@@ -6,7 +6,7 @@ import { environment } from '../../environments/environment';
 
 const API_BASE = environment.apiBaseUrl;
 
-export type BatchStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+export type BatchStatus = 'DRAFT' | 'QUEUED' | 'PROCESSING' | 'REVIEW_REQUIRED' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 export type DocumentType =
   | 'HANDWRITTEN_REGISTER'
   | 'HANDWRITTEN_CERAI_LEGACY'
