@@ -13,7 +13,12 @@ export type DocumentType =
   | 'HANDWRITTEN_CERAI_MODERN'
   | 'HANDWRITTEN_RUJUK_LEGACY'
   | 'HANDWRITTEN_RUJUK_MODERN'
+  // TYPED_BORANG_4B is kept for backward compatibility with already-stored
+  // rows -- new typed Nikah documents classify as one of the two below now
+  // (same legacy/modern split Cerai/Rujuk already had).
   | 'TYPED_BORANG_4B'
+  | 'TYPED_NIKAH_LEGACY'
+  | 'TYPED_NIKAH_MODERN'
   | 'TYPED_CERAI_LEGACY'
   | 'TYPED_CERAI_MODERN'
   | 'TYPED_RUJUK_LEGACY'
@@ -35,6 +40,8 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   HANDWRITTEN_RUJUK_LEGACY: 'Handwritten · Rujuk (legacy)',
   HANDWRITTEN_RUJUK_MODERN: 'Handwritten · Rujuk (modern)',
   TYPED_BORANG_4B: 'Typed · Nikah (Borang 4B)',
+  TYPED_NIKAH_LEGACY: 'Typed · Nikah (legacy, Borang 3A)',
+  TYPED_NIKAH_MODERN: 'Typed · Nikah (modern, Borang 4B)',
   TYPED_CERAI_LEGACY: 'Typed · Cerai (legacy)',
   TYPED_CERAI_MODERN: 'Typed · Cerai (modern)',
   TYPED_RUJUK_LEGACY: 'Typed · Rujuk (legacy)',
