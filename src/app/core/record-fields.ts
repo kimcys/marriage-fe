@@ -6,9 +6,20 @@ import { RecordType } from '../services/api.service';
  * (marriage-ocr's src/marriage_ocr/typed/csv_writer.py::TYPED_CSV_COLUMNS)
  * and the handwritten pipeline's (src/marriage_ocr/exporter.py::XLSX_COLUMNS),
  * unioned. The two pipelines sometimes name the same concept differently
- * (e.g. typed's "IC Wali" vs. handwritten's "No Kad Pengenalan/Passport
- * Wali") -- both spellings are kept so a column doesn't vanish just because
+ * (e.g. Cerai/Rujuk's typed "IC Suami" vs. its own "IC Suami Raw" backup
+ * text) -- both spellings are kept so a column doesn't vanish just because
  * a batch mixes typed and handwritten sources.
+ *
+ * NIKAH deliberately omits several columns both pipelines still emit under
+ * the hood (ID Suami/Isteri Raw, Mas Kahwin Raw, Tarikh Keluar Raw, IC Wali/
+ * No Kad Pengenalan/Passport Wali, IC Saksi 1/2, Pemberian Lain, and Nikah's
+ * copy of Jumlah Bayaran/Tarikh Lahir Suami/Tarikh Lahir Isteri) -- per
+ * explicit client request, these either duplicated an already-parsed
+ * sibling column under a different name, or added Nikah-only clutter with
+ * no distinct information. marriage-ocr's csv_writer.py/exporter.py were
+ * updated in lockstep to stop emitting them for Nikah rows specifically
+ * (Jumlah Bayaran/Tarikh Lahir Suami/Isteri stay real, populated columns
+ * for Cerai/Rujuk, which is why they're still listed below).
  *
  * Used so the records table always shows every field this record type
  * supports, not just whichever ones happen to be non-empty in the records
@@ -32,33 +43,23 @@ export const RECORD_TYPE_FIELDS: Record<RecordType, string[]> = {
     'Nama Suami',
     'IC Lama Suami',
     'IC Baru Suami',
-    'ID Suami Raw',
     'Umur Suami',
-    'Tarikh Lahir Suami',
     'Warganegara Suami',
     'Bangsa Suami',
     'Alamat Suami',
     'Nama Isteri',
     'IC Lama Isteri',
     'IC Baru Isteri',
-    'ID Isteri Raw',
     'Umur Isteri',
-    'Tarikh Lahir Isteri',
     'Warganegara Isteri',
     'Bangsa Isteri',
     'Alamat Isteri',
     'Nama Wali',
-    'IC Wali',
-    'No Kad Pengenalan/Passport Wali',
     'Umur Wali',
     'Hubungan Wali',
     'Alamat Wali',
     'Saksi 1',
-    'IC Saksi 1',
-    'Kad Pengenalan/Passport Saksi 1',
     'Saksi 2',
-    'IC Saksi 2',
-    'Kad Pengenalan/Passport Saksi 2',
     'Hari Nikah',
     'Masa Nikah',
     'Tempat Nikah',
@@ -69,13 +70,8 @@ export const RECORD_TYPE_FIELDS: Record<RecordType, string[]> = {
     'Pernikahan Kali',
     'Isteri Ke',
     'Mas Kahwin',
-    'Mas Kahwin Raw',
     'Belanja Hantaran',
-    'Pemberian Lain',
-    'Pemberian Lain (Jika Ada)',
-    'Jumlah Bayaran',
     'Tarikh Keluar',
-    'Tarikh Keluar Raw',
     'Remarks',
     'Record Type',
   ],
