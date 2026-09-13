@@ -25,6 +25,11 @@ const JOBS_PAGE_SIZE = 50;
 const JOBS_ROW_HEIGHT = 56;
 const JOBS_LOAD_MORE_THRESHOLD = 15;
 const RECORDS_PAGE_SIZE = 20;
+// Mirrors the backend's `limit` cap (Query(..., le=100) on every list
+// endpoint) -- refreshLoadedJobs must never request more than this in one
+// call, or the API rejects the request outright once more than 100 jobs
+// have been incrementally loaded via scrolling.
+const MAX_API_LIST_LIMIT = 100;
 const RECORDS_QUERY_DEBOUNCE_MS = 400;
 const NON_TERMINAL_JOB_STATUSES: JobStatus[] = ['PENDING', 'PROCESSING'];
 const NON_TERMINAL_SUBMISSION_STATUSES: OneDriveSubmissionStatus[] = ['PENDING', 'FETCHING'];
@@ -274,7 +279,12 @@ export class BatchDetailPage implements OnInit, OnDestroy {
 
   /** Re-fetches only the jobs already loaded in the browser, to pick up status
    * transitions (PENDING -> PROCESSING -> COMPLETED) without re-downloading
-   * the whole (potentially huge) job list on every poll tick. */
+   * the whole (potentially huge) job list on every poll tick. `loadedCount`
+   * grows unboundedly as the reviewer scrolls (see loadMoreJobs), so once it
+   * exceeds the backend's 100-item cap this must page through in chunks
+   * rather than send one oversized request -- a single `limit: loadedCount`
+   * call used to 400 outright ("query.limit: Input should be less than or
+   * equal to 100") on any batch with more than 100 jobs loaded. */
   private async refreshLoadedJobs(): Promise<void> {
     const loadedCount = this.jobs().length;
     if (loadedCount === 0) {
@@ -282,18 +292,27 @@ export class BatchDetailPage implements OnInit, OnDestroy {
       return;
     }
     try {
-      const page = await this.api.listJobs({
-        batchId: this.batchId,
-        status: this.jobsFilterParam(),
-        limit: loadedCount,
-        offset: 0,
-      });
-      this.jobs.set(page.items);
-      this.jobsTotal.set(page.total);
+      const offsets: number[] = [];
+      for (let offset = 0; offset < loadedCount; offset += MAX_API_LIST_LIMIT) {
+        offsets.push(offset);
+      }
+      const pages = await Promise.all(
+        offsets.map((offset) =>
+          this.api.listJobs({
+            batchId: this.batchId,
+            status: this.jobsFilterParam(),
+            limit: Math.min(MAX_API_LIST_LIMIT, loadedCount - offset),
+            offset,
+          }),
+        ),
+      );
+      const refreshedJobs = pages.flatMap((page) => page.items);
+      this.jobs.set(refreshedJobs);
+      this.jobsTotal.set(pages[pages.length - 1].total);
 
       // If a job just completed while its records panel was already open,
       // load its records automatically instead of leaving an empty panel.
-      for (const job of page.items) {
+      for (const job of refreshedJobs) {
         if (
           job.status === 'COMPLETED' &&
           this.expandedJobId() === job.id &&
