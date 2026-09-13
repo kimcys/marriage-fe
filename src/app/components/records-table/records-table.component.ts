@@ -2,6 +2,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { ApiClientError } from '../../core/api-error';
+import { isKnownRecordType, RECORD_TYPE_FIELDS } from '../../core/record-fields';
 import { ApiService, RecordResponse } from '../../services/api.service';
 import { ToastService } from '../../services/toast.service';
 
@@ -41,12 +42,26 @@ export class RecordsTableComponent {
     private readonly toast: ToastService,
   ) {}
 
-  /** Sorted union of every field key across the given records (field_values
-   * keys plus any still-missing ones) -- a batch can mix Nikah/Cerai/Rujuk
-   * records with different field sets on the same loaded page. */
+  /** Sorted union of every column the loaded records can show -- a batch
+   * can mix Nikah/Cerai/Rujuk records with different field sets on the same
+   * loaded page. For each record whose type is recognised, this includes
+   * every field RECORD_TYPE_FIELDS lists for that type (core AND optional),
+   * not just whichever ones happen to be non-empty on these particular
+   * records -- a genuinely blank/failed optional field (e.g. this batch's
+   * documents never fill in "Isteri Ke") should still show as an empty
+   * column, not vanish as if the backend never supported it. Every
+   * record's own actual field_values/missing_fields keys are unioned in on
+   * top regardless, so a record of an unrecognised type, or a real backend
+   * field this list hasn't been updated for yet, is never hidden either. */
   recordColumns(): string[] {
     const columns = new Set<string>();
     for (const record of this.records) {
+      const recordType = record.field_values['Record Type'];
+      if (isKnownRecordType(recordType)) {
+        for (const field of RECORD_TYPE_FIELDS[recordType]) {
+          columns.add(field);
+        }
+      }
       for (const key of Object.keys(record.field_values)) {
         columns.add(key);
       }
