@@ -128,6 +128,28 @@ export class BatchDetailPage implements OnInit, OnDestroy {
     }
   }
 
+  /** Hard stop, not a resumable pause: a PENDING job is skipped entirely and
+   * a PROCESSING job's OCR subprocess is killed, so a cancelled job has to
+   * be retried from scratch afterward (via retryJob) rather than resumed
+   * partway through. Cancellation is applied synchronously in the DB before
+   * this returns, so one refresh is enough -- no extra polling needed. */
+  async stopBatchProcessing(): Promise<void> {
+    if (
+      !confirm(
+        'Stop all OCR processing for this batch? Any currently-running job will be cancelled and every pending job will be skipped. Cancelled jobs can be retried individually afterward.',
+      )
+    ) {
+      return;
+    }
+    try {
+      this.batch.set(await this.api.stopBatchProcessing(this.batchId));
+      await this.refreshLoadedJobs();
+      this.toast.success('Processing stopped.');
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
   // ---- OneDrive links ----
 
   async submitOneDriveLink(): Promise<void> {

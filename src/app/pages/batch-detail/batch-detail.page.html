@@ -19,7 +19,14 @@
 
   <!-- OneDrive links: the only ingestion path -->
   <section class="space-y-4 border-t border-hairline pt-8">
-    <h2 class="text-caption font-semibold uppercase tracking-wide text-ash">Submit a OneDrive link</h2>
+    <div class="flex items-center justify-between gap-3">
+      <h2 class="text-caption font-semibold uppercase tracking-wide text-ash">Submit a OneDrive link</h2>
+      @if (batch()?.status === 'PROCESSING') {
+        <button type="button" class="text-caption text-error hover:underline" (click)="stopBatchProcessing()">
+          Stop processing
+        </button>
+      }
+    </div>
     <p class="text-body-sm text-ash">
       Paste a OneDrive share link. Every file it resolves to is auto-classified in the background
       (a single link may mix handwritten/typed and Nikah/Cerai/Rujuk content) and routed to its own job.
@@ -111,6 +118,7 @@
         <option value="PROCESSING">Processing</option>
         <option value="COMPLETED">Completed</option>
         <option value="FAILED">Failed</option>
+        <option value="CANCELLED">Cancelled</option>
       </select>
     </div>
 
@@ -143,7 +151,7 @@
           </span>
           <span class="truncate text-caption text-error">{{ job.error?.message ?? '' }}</span>
           <span class="text-right">
-            @if (job.status === 'FAILED') {
+            @if (job.status === 'FAILED' || job.status === 'CANCELLED') {
               <button type="button" class="text-caption text-link-blue hover:underline" (click)="retryJob(job)">Retry</button>
             }
             @if (job.status === 'COMPLETED') {

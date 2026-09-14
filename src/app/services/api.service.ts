@@ -23,7 +23,7 @@ export type DocumentType =
   | 'TYPED_CERAI_MODERN'
   | 'TYPED_RUJUK_LEGACY'
   | 'TYPED_RUJUK_MODERN';
-export type JobStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+export type JobStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 export type RecordStatus = 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED';
 export type RecordType = 'NIKAH' | 'CERAI' | 'RUJUK';
 export type ExportStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
@@ -187,6 +187,16 @@ export class ApiService {
    * records, OneDrive submissions, exports -- irreversibly. */
   deleteBatch(batchId: string): Promise<void> {
     return firstValueFrom(this.http.delete<void>(`${API_BASE}/batches/${batchId}`));
+  }
+
+  /** Stops every PENDING/PROCESSING OCR job in the batch -- a PENDING job is
+   * simply skipped, and a PROCESSING job's subprocess is killed within a
+   * couple of seconds. OneDrive link fetching/classifying is untouched.
+   * Safe to call when nothing is running -- a no-op that returns the batch
+   * unchanged rather than erroring. Each cancelled job can be retried
+   * individually afterward via retryJob. */
+  stopBatchProcessing(batchId: string): Promise<BatchResponse> {
+    return firstValueFrom(this.http.post<BatchResponse>(`${API_BASE}/batches/${batchId}/cancel`, {}));
   }
 
   // ---- OneDrive links ----
