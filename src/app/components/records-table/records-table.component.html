@@ -69,9 +69,11 @@
             </td>
           }
           <td class="whitespace-nowrap px-3 py-2 align-top">
-            <button type="button" class="text-caption text-error hover:underline" (click)="deleteRecord(record)">
-              Delete
-            </button>
+            @if (auth.isAdmin()) {
+              <button type="button" class="text-caption text-error hover:underline" (click)="deleteRecord(record)">
+                Delete
+              </button>
+            }
           </td>
         </tr>
       }

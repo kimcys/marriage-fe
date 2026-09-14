@@ -175,3 +175,51 @@ const KNOWN_RECORD_TYPES = new Set<string>(Object.keys(RECORD_TYPE_FIELDS));
 export function isKnownRecordType(value: unknown): value is RecordType {
   return typeof value === 'string' && KNOWN_RECORD_TYPES.has(value);
 }
+
+/**
+ * One global column order for a records table that can mix record types on
+ * the same page (see RecordsTableComponent.recordColumns) -- concatenates
+ * NIKAH's field order, then whatever CERAI adds that NIKAH didn't already
+ * list, then whatever RUJUK adds on top of both, keeping each field's
+ * first occurrence. Every field already appears in roughly the same
+ * relative position across all three lists above (identifiers, then
+ * dates, then the husband block, then the wife block, then ceremony/
+ * registration specifics, then remarks/Record Type last), so this keeps
+ * that same high-priority-first layout for a mixed table instead of
+ * falling back to an alphabetical sort -- derived from RECORD_TYPE_FIELDS
+ * rather than hand-maintained, so it can never drift out of sync with it.
+ */
+const RECORD_FIELD_PRIORITY_INDEX: ReadonlyMap<string, number> = (() => {
+  const order: string[] = [];
+  const seen = new Set<string>();
+  for (const fields of Object.values(RECORD_TYPE_FIELDS)) {
+    for (const field of fields) {
+      if (!seen.has(field)) {
+        seen.add(field);
+        order.push(field);
+      }
+    }
+  }
+  return new Map(order.map((field, index) => [field, index]));
+})();
+
+/** Comparator for Array.prototype.sort: known fields sort by their
+ * curated priority order above; anything not in that list (a real backend
+ * field this file hasn't been updated for yet, or a record of an
+ * unrecognised type) sorts after every known field, alphabetically among
+ * themselves, so it's still visible rather than hidden -- just not
+ * competing for a "priority" position no one assigned it. */
+export function compareByFieldPriority(a: string, b: string): number {
+  const indexA = RECORD_FIELD_PRIORITY_INDEX.get(a);
+  const indexB = RECORD_FIELD_PRIORITY_INDEX.get(b);
+  if (indexA === undefined && indexB === undefined) {
+    return a.localeCompare(b);
+  }
+  if (indexA === undefined) {
+    return 1;
+  }
+  if (indexB === undefined) {
+    return -1;
+  }
+  return indexA - indexB;
+}

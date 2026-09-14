@@ -2,8 +2,9 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { ApiClientError } from '../../core/api-error';
-import { isKnownRecordType, RECORD_TYPE_FIELDS } from '../../core/record-fields';
+import { compareByFieldPriority, isKnownRecordType, RECORD_TYPE_FIELDS } from '../../core/record-fields';
 import { ApiService, RecordResponse } from '../../services/api.service';
+import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
 
 export interface EditableRecord extends RecordResponse {
@@ -40,6 +41,7 @@ export class RecordsTableComponent {
   constructor(
     private readonly api: ApiService,
     private readonly toast: ToastService,
+    protected readonly auth: AuthService,
   ) {}
 
   /** Sorted union of every column the loaded records can show -- a batch
@@ -69,7 +71,7 @@ export class RecordsTableComponent {
         columns.add(key);
       }
     }
-    return Array.from(columns).sort();
+    return Array.from(columns).sort(compareByFieldPriority);
   }
 
   cellValue(record: EditableRecord, column: string): string {
