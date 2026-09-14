@@ -75,60 +75,53 @@ export const RECORD_TYPE_FIELDS: Record<RecordType, string[]> = {
     'Remarks',
     'Record Type',
   ],
+  // Per explicit client request, CERAI omits: Bil Daftar Rujuk Asal, Bil
+  // Daftar Rujukan, Catatan Raw, IC Isteri Raw, IC Suami Raw, Jumlah
+  // Bayaran, No Permohonan Cerai, No Rujukan, No Sijil Perakuan Nikah
+  // Rujuk, No Siri, No Telefon, Saksi 1, Saksi 2, Tarikh Cerai Raw, Tarikh
+  // Keluar, Tarikh Keluar Raw, Tempat Bercerai (Tempat Cerai is the
+  // correct column instead), Umur Isteri, Umur Suami -- several of these
+  // (No Rujukan/No Siri/Saksi 1-2/Tarikh Keluar/Umur Isteri-Suami
+  // especially) are real, populated columns for other record types, so
+  // they stay listed under NIKAH/RUJUK above; marriage-ocr's csv_writer.py/
+  // exporter.py were updated in lockstep to stop emitting them for Cerai
+  // rows specifically (or, for the globally-unused ones, to drop the
+  // column entirely).
   CERAI: [
     'Bil',
-    'No Rujukan',
-    'No Siri',
     'Tarikh Daftar',
     'Tarikh Daftar Hijri',
     'Nama Suami',
-    'Umur Suami',
     'IC Suami',
-    'IC Suami Raw',
     'Bangsa Suami',
     'Warganegara Suami',
     'Alamat Suami',
     'Pekerjaan Suami',
     'Tarikh Lahir Suami',
     'Nama Isteri',
-    'Umur Isteri',
     'IC Isteri',
-    'IC Isteri Raw',
     'Bangsa Isteri',
     'Warganegara Isteri',
     'Alamat Isteri',
     'Pekerjaan Isteri',
     'Tarikh Lahir Isteri',
     'Bil Daftar Nikah',
-    'Bil Daftar Rujuk Asal',
-    'Bil Daftar Rujukan',
     'Bilangan Kes Mal',
-    'No Sijil Perakuan Nikah Rujuk',
-    'No Permohonan Cerai',
     'Tempat Nikah Daerah',
     'Tempat Nikah Negeri',
     'Tarikh Nikah',
     'Tarikh Nikah Hijri',
     'Tempat Cerai',
-    'Tempat Bercerai',
     'Keadaan Talak',
     'Cerai Dalam Keadaan',
     'Talak Kali Ke',
     'Jumlah Talak',
     'Bayaran Tebus Talak',
     'Tarikh Cerai',
-    'Tarikh Cerai Raw',
     'Tarikh Cerai Hijri',
-    'Saksi 1',
-    'Saksi 2',
-    'Jumlah Bayaran',
     'Nama Pendaftar',
     'Jawatan Pendaftar',
-    'Catatan Raw',
     'Hal Hal Lain',
-    'No Telefon',
-    'Tarikh Keluar',
-    'Tarikh Keluar Raw',
     'Record Type',
   ],
   // Per explicit client request, RUJUK omits: Catatan Raw, IC Isteri Raw,
