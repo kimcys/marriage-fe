@@ -17,6 +17,7 @@ import {
   RecordResponse,
   RecordStatus,
 } from '../../services/api.service';
+import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
 
 type StatusFilter<T extends string> = T | 'ALL';
@@ -96,6 +97,7 @@ export class BatchDetailPage implements OnInit, OnDestroy {
     private readonly router: Router,
     private readonly api: ApiService,
     private readonly toast: ToastService,
+    protected readonly auth: AuthService,
   ) {}
 
   ngOnInit(): void {

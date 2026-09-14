@@ -56,9 +56,11 @@
                 {{ batch.status }}
               </span>
             </a>
-            <button type="button" class="text-caption text-error hover:underline" (click)="deleteBatch(batch)">
-              Delete
-            </button>
+            @if (auth.isAdmin()) {
+              <button type="button" class="text-caption text-error hover:underline" (click)="deleteBatch(batch)">
+                Delete
+              </button>
+            }
           </div>
         }
       </div>

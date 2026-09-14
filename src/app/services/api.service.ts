@@ -29,6 +29,7 @@ export type RecordType = 'NIKAH' | 'CERAI' | 'RUJUK';
 export type ExportStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
 export type ExportFormat = 'CSV' | 'XLSX';
 export type OneDriveSubmissionStatus = 'PENDING' | 'FETCHING' | 'FETCHED' | 'FAILED';
+export type Role = 'ADMIN' | 'REVIEWER';
 
 /** Display labels for job rows -- a document's type is decided entirely by
  * the OneDrive-link auto-classification step now, never picked by a caller,
@@ -47,6 +48,12 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   TYPED_RUJUK_LEGACY: 'Typed · Rujuk (legacy)',
   TYPED_RUJUK_MODERN: 'Typed · Rujuk (modern)',
 };
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  role: Role;
+}
 
 export interface Paginated<T> {
   items: T[];
@@ -162,6 +169,12 @@ function toHttpParams(input: Record<string, string | number | boolean | undefine
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   constructor(private readonly http: HttpClient) {}
+
+  // ---- Auth ----
+
+  login(email: string, password: string): Promise<TokenResponse> {
+    return firstValueFrom(this.http.post<TokenResponse>(`${API_BASE}/auth/login`, { email, password }));
+  }
 
   // ---- Batches ----
 

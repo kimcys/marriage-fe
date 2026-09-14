@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { EditableRecord, RecordsTableComponent } from '../../components/records-table/records-table.component';
 import { ApiClientError } from '../../core/api-error';
 import { ApiService, BatchResponse, RecordResponse, RecordStatus, RecordType } from '../../services/api.service';
+import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
 
 const PAGE_SIZE = 20;
@@ -46,6 +47,7 @@ export class BatchListPage implements OnInit, OnDestroy {
   constructor(
     private readonly api: ApiService,
     private readonly toast: ToastService,
+    protected readonly auth: AuthService,
   ) {}
 
   ngOnInit(): void {

@@ -12,7 +12,9 @@
       </div>
       <div class="flex items-center gap-3">
         <span class="rounded-tags px-2.5 py-1 text-caption font-medium" [class]="statusClasses(b.status)">{{ b.status }}</span>
-        <button type="button" class="text-caption text-error hover:underline" (click)="deleteBatch()">Delete batch</button>
+        @if (auth.isAdmin()) {
+          <button type="button" class="text-caption text-error hover:underline" (click)="deleteBatch()">Delete batch</button>
+        }
       </div>
     </div>
   }
@@ -74,9 +76,11 @@
                     Retry
                   </button>
                 }
-                <button type="button" class="text-caption text-error hover:underline" (click)="deleteOneDriveSubmission(submission)">
-                  Delete
-                </button>
+                @if (auth.isAdmin()) {
+                  <button type="button" class="text-caption text-error hover:underline" (click)="deleteOneDriveSubmission(submission)">
+                    Delete
+                  </button>
+                }
               </div>
             </div>
             @if (submission.error) {
@@ -308,7 +312,9 @@
                 @if (exportItem.status === 'COMPLETED') {
                   <a [href]="downloadExportUrl(exportItem)" class="text-caption text-link-blue hover:underline">Download</a>
                 }
-                <button type="button" class="text-caption text-error hover:underline" (click)="deleteExport(exportItem)">Delete</button>
+                @if (auth.isAdmin()) {
+                  <button type="button" class="text-caption text-error hover:underline" (click)="deleteExport(exportItem)">Delete</button>
+                }
               </div>
             </div>
           }

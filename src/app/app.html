@@ -1,9 +1,17 @@
 <div class="min-h-screen bg-frost text-carbon">
   <app-toast-container />
   <header class="border-b border-hairline bg-white">
-    <div class="mx-auto max-w-6xl px-6 py-5">
-      <a routerLink="/batches" class="text-subheading font-semibold text-carbon">Marriage Register OCR</a>
-      <p class="text-body-sm text-ash">Submit OneDrive links and review Vision OCR + Gemini extractions.</p>
+    <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+      <div>
+        <a routerLink="/batches" class="text-subheading font-semibold text-carbon">Marriage Register OCR</a>
+        <p class="text-body-sm text-ash">Submit OneDrive links and review Vision OCR + Gemini extractions.</p>
+      </div>
+      @if (auth.isAuthenticated()) {
+        <div class="flex items-center gap-3 text-caption text-ash">
+          <span>{{ auth.currentUser()?.email }} · {{ auth.currentUser()?.role }}</span>
+          <button type="button" class="text-link-blue hover:underline" (click)="logout()">Log out</button>
+        </div>
+      }
     </div>
   </header>
 

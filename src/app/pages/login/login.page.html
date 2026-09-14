@@ -1,0 +1,40 @@
+<div class="mx-auto max-w-sm space-y-6 pt-16">
+  <div>
+    <h1 class="text-heading-sm font-semibold text-carbon">Sign in</h1>
+    <p class="text-body-sm text-ash">Marriage Register OCR</p>
+  </div>
+
+  <form class="space-y-4" (ngSubmit)="submit()">
+    <div class="space-y-1">
+      <label for="email" class="text-caption font-medium text-ash">Email</label>
+      <input
+        id="email"
+        type="email"
+        autocomplete="username"
+        [(ngModel)]="email"
+        name="email"
+        required
+        class="w-full rounded-inputs border border-hairline bg-frost px-3 py-2 text-body-sm text-carbon focus:outline-none focus:ring-2 focus:ring-apple-blue"
+      />
+    </div>
+    <div class="space-y-1">
+      <label for="password" class="text-caption font-medium text-ash">Password</label>
+      <input
+        id="password"
+        type="password"
+        autocomplete="current-password"
+        [(ngModel)]="password"
+        name="password"
+        required
+        class="w-full rounded-inputs border border-hairline bg-frost px-3 py-2 text-body-sm text-carbon focus:outline-none focus:ring-2 focus:ring-apple-blue"
+      />
+    </div>
+    <button
+      type="submit"
+      class="w-full rounded-buttons bg-apple-blue px-[15px] py-[11px] text-body text-ice disabled:cursor-not-allowed disabled:opacity-40"
+      [disabled]="!email.trim() || !password || loggingIn()"
+    >
+      {{ loggingIn() ? 'Signing in…' : 'Sign in' }}
+    </button>
+  </form>
+</div>
