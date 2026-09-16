@@ -33,15 +33,29 @@
           </td>
           <td class="min-w-[9rem] px-3 py-2 align-top">
             @if (hasSourceFile(record)) {
-              <a
-                [href]="sourceFileUrl(record)"
-                target="_blank"
-                rel="noopener"
-                class="text-caption text-link-blue hover:underline"
-                [title]="record.original_filename ?? 'View source file'"
-              >
-                {{ record.original_filename ?? 'View file' }}
-              </a>
+              <div class="space-y-1">
+                <p class="max-w-[12rem] truncate text-caption text-carbon" [title]="record.original_filename ?? ''">
+                  {{ record.original_filename ?? 'Source file' }}
+                </p>
+                <div class="flex items-center gap-2">
+                  <button
+                    type="button"
+                    class="text-caption text-link-blue hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+                    [disabled]="record.openingSourceFile"
+                    (click)="openSourceFile(record)"
+                  >
+                    {{ record.openingSourceFile ? 'Opening…' : 'Preview' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="text-caption text-link-blue hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+                    [disabled]="record.downloadingSourceFile"
+                    (click)="downloadSourceFile(record)"
+                  >
+                    {{ record.downloadingSourceFile ? 'Downloading…' : 'Download' }}
+                  </button>
+                </div>
+              </div>
             } @else {
               <span class="text-caption text-ash">—</span>
             }

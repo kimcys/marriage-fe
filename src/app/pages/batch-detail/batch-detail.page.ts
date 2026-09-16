@@ -5,6 +5,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { EditableRecord, RecordsTableComponent } from '../../components/records-table/records-table.component';
 import { ApiClientError } from '../../core/api-error';
+import { openBlob, saveBlob, withoutExtension } from '../../core/file-download';
 import {
   ApiService,
   BatchResponse,
@@ -44,6 +45,9 @@ export class BatchDetailPage implements OnInit, OnDestroy {
   protected readonly jobsRowHeight = JOBS_ROW_HEIGHT;
 
   protected readonly batch = signal<BatchResponse | null>(null);
+  protected readonly editingName = signal(false);
+  protected readonly savingName = signal(false);
+  protected editingNameValue = '';
 
   // ---- OneDrive links: the only ingestion path. A link is fetched and every
   // file it resolves to auto-classified in the background -- this list is
@@ -68,6 +72,8 @@ export class BatchDetailPage implements OnInit, OnDestroy {
   protected readonly expandedJobId = signal<string | null>(null);
   protected readonly jobRecords = signal<Record<string, EditableRecord[]>>({});
   protected readonly loadingRecordsForJob = signal<Set<string>>(new Set());
+  protected readonly downloadingJobIds = signal<Set<string>>(new Set());
+  protected readonly previewingJobIds = signal<Set<string>>(new Set());
 
   // ---- Batch-wide records review queue: paginated + filterable (status,
   // free-text over field values, and which OneDrive link a record came from),
@@ -85,6 +91,8 @@ export class BatchDetailPage implements OnInit, OnDestroy {
 
   protected readonly exports = signal<ExportResponse[]>([]);
   protected readonly exporting = signal(false);
+  protected readonly downloadingExportIds = signal<Set<string>>(new Set());
+  protected readonly previewingExportIds = signal<Set<string>>(new Set());
 
   protected exportFormat: ExportFormat = 'XLSX';
 
@@ -127,6 +135,41 @@ export class BatchDetailPage implements OnInit, OnDestroy {
       await this.router.navigate(['/batches']);
     } catch (error) {
       this.handleError(error);
+    }
+  }
+
+  startEditName(): void {
+    const current = this.batch();
+    if (!current) {
+      return;
+    }
+    this.editingNameValue = current.name;
+    this.editingName.set(true);
+  }
+
+  cancelEditName(): void {
+    this.editingName.set(false);
+  }
+
+  async saveName(): Promise<void> {
+    const current = this.batch();
+    const name = this.editingNameValue.trim();
+    if (!current) {
+      return;
+    }
+    if (!name || name === current.name) {
+      this.editingName.set(false);
+      return;
+    }
+    this.savingName.set(true);
+    try {
+      this.batch.set(await this.api.renameBatch(this.batchId, name));
+      this.editingName.set(false);
+      this.toast.success('Batch renamed.');
+    } catch (error) {
+      this.handleError(error);
+    } finally {
+      this.savingName.set(false);
     }
   }
 
@@ -360,8 +403,55 @@ export class BatchDetailPage implements OnInit, OnDestroy {
     }
   }
 
-  downloadJobUrl(job: JobResponse): string {
-    return this.api.downloadJobUrl(job.id);
+  isPreviewingJob(jobId: string): boolean {
+    return this.previewingJobIds().has(jobId);
+  }
+
+  /** Same Bearer-token fetch as downloadJob below, but opens the result in a
+   * new tab instead of forcing it to disk. */
+  async previewJob(job: JobResponse): Promise<void> {
+    if (this.isPreviewingJob(job.id)) {
+      return;
+    }
+    this.previewingJobIds.update((ids) => new Set(ids).add(job.id));
+    try {
+      const blob = await this.api.downloadJobFile(job.id);
+      openBlob(blob);
+    } catch (error) {
+      this.handleError(error);
+    } finally {
+      this.previewingJobIds.update((ids) => {
+        const next = new Set(ids);
+        next.delete(job.id);
+        return next;
+      });
+    }
+  }
+
+  isDownloadingJob(jobId: string): boolean {
+    return this.downloadingJobIds().has(jobId);
+  }
+
+  /** The download route needs a Bearer token a plain `<a href>` can't send,
+   * so this fetches the file as a blob (through HttpClient, which the auth
+   * interceptor attaches the token to) and saves it client-side instead. */
+  async downloadJob(job: JobResponse): Promise<void> {
+    if (this.isDownloadingJob(job.id)) {
+      return;
+    }
+    this.downloadingJobIds.update((ids) => new Set(ids).add(job.id));
+    try {
+      const blob = await this.api.downloadJobFile(job.id);
+      saveBlob(blob, `${withoutExtension(job.original_filename)}-result.xlsx`);
+    } catch (error) {
+      this.handleError(error);
+    } finally {
+      this.downloadingJobIds.update((ids) => {
+        const next = new Set(ids);
+        next.delete(job.id);
+        return next;
+      });
+    }
   }
 
   // ---- Adaptive polling: only keep polling while something loaded is still
@@ -563,8 +653,53 @@ export class BatchDetailPage implements OnInit, OnDestroy {
     }
   }
 
-  downloadExportUrl(exportItem: ExportResponse): string {
-    return this.api.downloadExportUrl(exportItem.id);
+  isPreviewingExport(exportId: string): boolean {
+    return this.previewingExportIds().has(exportId);
+  }
+
+  /** Same Bearer-token fetch as downloadExport below, but opens the file in
+   * a new tab instead of forcing it to disk. */
+  async previewExport(exportItem: ExportResponse): Promise<void> {
+    if (this.isPreviewingExport(exportItem.id)) {
+      return;
+    }
+    this.previewingExportIds.update((ids) => new Set(ids).add(exportItem.id));
+    try {
+      const blob = await this.api.downloadExportFile(exportItem.id);
+      openBlob(blob);
+    } catch (error) {
+      this.handleError(error);
+    } finally {
+      this.previewingExportIds.update((ids) => {
+        const next = new Set(ids);
+        next.delete(exportItem.id);
+        return next;
+      });
+    }
+  }
+
+  isDownloadingExport(exportId: string): boolean {
+    return this.downloadingExportIds().has(exportId);
+  }
+
+  /** Same Bearer-token requirement as downloadJob above. */
+  async downloadExport(exportItem: ExportResponse): Promise<void> {
+    if (this.isDownloadingExport(exportItem.id)) {
+      return;
+    }
+    this.downloadingExportIds.update((ids) => new Set(ids).add(exportItem.id));
+    try {
+      const blob = await this.api.downloadExportFile(exportItem.id);
+      saveBlob(blob, `export-${exportItem.batch_id}.${exportItem.format.toLowerCase()}`);
+    } catch (error) {
+      this.handleError(error);
+    } finally {
+      this.downloadingExportIds.update((ids) => {
+        const next = new Set(ids);
+        next.delete(exportItem.id);
+        return next;
+      });
+    }
   }
 
   async deleteExport(exportItem: ExportResponse): Promise<void> {

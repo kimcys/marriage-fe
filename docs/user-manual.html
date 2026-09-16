@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Marriage Register OCR — User Guide</title>
+<style>
+  @page {
+    size: A4;
+    margin: 22mm 18mm 20mm 18mm;
+    @bottom-center {
+      content: "Marriage Register OCR — User Guide  ·  Page " counter(page) " of " counter(pages);
+      font-family: "Helvetica Neue", Arial, sans-serif;
+      font-size: 8.5pt;
+      color: #8a8f98;
+    }
+  }
+
+  :root {
+    --ink: #1c1f26;
+    --ash: #5b6270;
+    --hairline: #e2e5ea;
+    --blue: #2f6fed;
+    --blue-bg: #eef3fe;
+    --warn: #b06a00;
+    --warn-bg: #fff3e0;
+    --ok: #1a7f4e;
+    --ok-bg: #e9f9f0;
+    --pebble: #f4f5f7;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    font-size: 10.5pt;
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  h1, h2, h3 { font-family: "Helvetica Neue", Arial, sans-serif; font-weight: 700; }
+
+  /* ---------- Cover ---------- */
+  .cover {
+    height: 235mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    page-break-after: always;
+  }
+  .cover .kicker {
+    font-size: 10pt;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--blue);
+    font-weight: 700;
+    margin-bottom: 14px;
+  }
+  .cover h1 {
+    font-size: 32pt;
+    line-height: 1.15;
+    margin: 0 0 10px 0;
+    max-width: 11.5cm;
+  }
+  .cover p.sub {
+    font-size: 13pt;
+    color: var(--ash);
+    max-width: 11cm;
+    margin: 0 0 40px 0;
+  }
+  .cover .meta {
+    border-top: 1px solid var(--hairline);
+    padding-top: 14px;
+    font-size: 9.5pt;
+    color: var(--ash);
+  }
+
+  /* ---------- Section chrome ---------- */
+  .section { page-break-before: always; }
+  .section:first-of-type { page-break-before: auto; }
+
+  .eyebrow {
+    font-size: 8.5pt;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--blue);
+    font-weight: 700;
+    margin: 0 0 4px 0;
+  }
+  h2.step-title {
+    font-size: 18pt;
+    margin: 0 0 4px 0;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    background: var(--blue);
+    color: white;
+    font-size: 12pt;
+    font-weight: 700;
+    flex: none;
+  }
+  .lead {
+    color: var(--ash);
+    font-size: 10.5pt;
+    margin: 8px 0 20px 0;
+    max-width: 15cm;
+  }
+
+  /* ---------- UI-label chip ---------- */
+  .ui {
+    display: inline-block;
+    background: var(--pebble);
+    border: 1px solid var(--hairline);
+    border-radius: 5px;
+    padding: 0.5px 6px;
+    font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 9pt;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  /* ---------- numbered instructions ---------- */
+  ol.steps {
+    list-style: none;
+    counter-reset: step;
+    margin: 0 0 18px 0;
+    padding: 0;
+  }
+  ol.steps > li {
+    counter-increment: step;
+    position: relative;
+    padding: 0 0 14px 34px;
+    margin: 0 0 4px 0;
+  }
+  ol.steps > li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    border: 1.5px solid var(--blue);
+    color: var(--blue);
+    font-weight: 700;
+    font-size: 9.5pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  ol.steps > li strong { color: var(--ink); }
+
+  /* ---------- callouts ---------- */
+  .callout {
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin: 14px 0;
+    font-size: 9.8pt;
+    border: 1px solid var(--hairline);
+  }
+  .callout.tip { background: var(--blue-bg); border-color: #c9dcfc; }
+  .callout.warn { background: var(--warn-bg); border-color: #f2ddb0; }
+  .callout .callout-label {
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 8pt;
+    letter-spacing: 0.08em;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .callout.tip .callout-label { color: var(--blue); }
+  .callout.warn .callout-label { color: var(--warn); }
+
+  /* ---------- status table ---------- */
+  table.statuses {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9.5pt;
+    margin: 10px 0 20px 0;
+  }
+  table.statuses th, table.statuses td {
+    text-align: left;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--hairline);
+    vertical-align: top;
+  }
+  table.statuses th {
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ash);
+    border-bottom: 1.5px solid var(--ink);
+  }
+  .pill {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 1.5px 9px;
+    font-size: 8.5pt;
+    font-weight: 700;
+  }
+  .pill.warn { background: var(--warn-bg); color: var(--warn); }
+  .pill.ok { background: var(--ok-bg); color: var(--ok); }
+  .pill.neutral { background: var(--pebble); color: var(--ash); }
+  .pill.blue { background: var(--blue-bg); color: var(--blue); }
+
+  /* ---------- mock screen ---------- */
+  .mock {
+    border: 1px solid var(--hairline);
+    border-radius: 10px;
+    padding: 14px 16px;
+    background: #fbfbfc;
+    margin: 14px 0 20px 0;
+  }
+  .mock .mock-label {
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ash);
+    margin-bottom: 8px;
+  }
+  .mock-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .mock-input {
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+    background: white;
+    padding: 5px 9px;
+    font-size: 9pt;
+    color: #9aa0ab;
+    flex: 1;
+  }
+  .mock-btn {
+    border-radius: 6px;
+    background: var(--blue);
+    color: white;
+    padding: 6px 12px;
+    font-size: 9pt;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .mock-btn.ghost {
+    background: white;
+    color: var(--blue);
+    border: 1px solid var(--blue);
+  }
+
+  footer.end {
+    margin-top: 40px;
+    padding-top: 14px;
+    border-top: 1px solid var(--hairline);
+    color: var(--ash);
+    font-size: 9pt;
+  }
+
+  .role-note {
+    font-size: 9.5pt;
+    color: var(--ash);
+    border-left: 3px solid var(--blue);
+    padding-left: 10px;
+    margin: 10px 0 18px 0;
+  }
+</style>
+</head>
+<body>
+
+  <!-- ============ COVER ============ -->
+  <div class="cover">
+    <div class="kicker">User Guide</div>
+    <h1>Marriage Register OCR</h1>
+    <p class="sub">A step-by-step walkthrough — from signing in to correcting an extracted record — written for reviewers with no technical background.</p>
+    <div class="meta">Covers: signing in · creating a batch · submitting a OneDrive link · tracking jobs · reviewing and correcting records · exporting results</div>
+  </div>
+
+  <!-- ============ STEP 1: SIGN IN ============ -->
+  <div class="section">
+    <div class="eyebrow">Getting started</div>
+    <h2 class="step-title"><span class="step-num">1</span> Signing in</h2>
+    <p class="lead">Every action in this system requires an account. Ask your administrator for your email and password if you don't have one yet.</p>
+
+    <div class="mock">
+      <div class="mock-label">Sign-in screen</div>
+      <div class="mock-row"><span style="width:70px;font-size:9pt;color:#5b6270;">Email</span><span class="mock-input">you@example.com</span></div>
+      <div class="mock-row"><span style="width:70px;font-size:9pt;color:#5b6270;">Password</span><span class="mock-input">••••••••</span></div>
+      <div class="mock-row"><span class="mock-btn">Sign in</span></div>
+    </div>
+
+    <ol class="steps">
+      <li>Open the site in your browser.</li>
+      <li>Type your <strong>Email</strong> and <strong>Password</strong> into the two boxes.</li>
+      <li>Click <span class="ui">Sign in</span>.</li>
+    </ol>
+
+    <div class="role-note">
+      <strong>Two kinds of accounts.</strong> An <strong>Admin</strong> can do everything, including delete batches, links, records, and exports.
+      A <strong>Reviewer</strong> can do everything except delete — any <span class="ui">Delete</span> button simply won't appear for a Reviewer account.
+      Both can submit links, review records, and correct data.
+    </div>
+  </div>
+
+  <!-- ============ STEP 2: CREATE A BATCH ============ -->
+  <div class="section">
+    <div class="eyebrow">Organizing work</div>
+    <h2 class="step-title"><span class="step-num">2</span> Creating a batch</h2>
+    <p class="lead">A <strong>batch</strong> is a folder for one set of registers — for example, all the pages from one physical volume. You'll create a batch before submitting any files to it.</p>
+
+    <div class="mock">
+      <div class="mock-label">Create a batch</div>
+      <div class="mock-row">
+        <span class="mock-input">e.g. Kajang Register Vol. 12</span>
+        <span class="mock-input" style="flex:1.4">Description (optional)</span>
+        <span class="mock-btn">Create batch</span>
+      </div>
+    </div>
+
+    <ol class="steps">
+      <li>On the home page, find the <strong>Create a batch</strong> section at the top.</li>
+      <li>Type a short, recognizable <strong>Name</strong> — something that tells you what's inside at a glance.</li>
+      <li>Optionally add a <strong>Description</strong> with more detail.</li>
+      <li>Click <span class="ui">Create batch</span>. It appears immediately in the <strong>Batches</strong> list below, and you're ready to add files to it.</li>
+      <li>Click the batch's name at any time to open it.</li>
+    </ol>
+  </div>
+
+  <!-- ============ STEP 3: SUBMIT A ONEDRIVE LINK ============ -->
+  <div class="section">
+    <div class="eyebrow">Adding files</div>
+    <h2 class="step-title"><span class="step-num">3</span> Submitting a OneDrive link</h2>
+    <p class="lead">Files are added to a batch by pasting a OneDrive share link — not by uploading files directly. One link can point to a whole folder, and every file inside it is picked up automatically.</p>
+
+    <div class="mock">
+      <div class="mock-label">Submit a OneDrive link</div>
+      <div class="mock-row">
+        <span class="mock-input">https://1drv.ms/...</span>
+        <span class="mock-btn">Submit link</span>
+      </div>
+    </div>
+
+    <ol class="steps">
+      <li>Open the batch you want to add files to.</li>
+      <li>Find the <strong>Submit a OneDrive link</strong> section.</li>
+      <li>Paste the OneDrive share link into the box.</li>
+      <li>Click <span class="ui">Submit link</span> (or press Enter).</li>
+    </ol>
+
+    <div class="callout tip">
+      <span class="callout-label">What happens next</span>
+      The system downloads every file the link points to, figures out on its own whether each page is handwritten or typed and
+      which register type it is (Nikah, Cerai, or Rujuk), then starts extracting the data. You'll see a banner —
+      <em>"1 link(s) downloading and classifying — this can take a few minutes for many files"</em> — while this is in progress.
+      This is normal; larger folders simply take longer. You don't need to keep the page open — check back later.
+    </div>
+
+    <div class="callout warn">
+      <span class="callout-label">If a link fails</span>
+      It will show a <span class="pill warn">FAILED</span> tag with a short error message underneath. Click the
+      <span class="ui">Retry</span> link next to it to try again — for example, after fixing a sharing-permission problem on the OneDrive side.
+    </div>
+  </div>
+
+  <!-- ============ STEP 4: TRACK JOBS ============ -->
+  <div class="section">
+    <div class="eyebrow">Tracking progress</div>
+    <h2 class="step-title"><span class="step-num">4</span> Watching jobs process</h2>
+    <p class="lead">Each page from your files becomes one <strong>job</strong>. The <strong>Jobs</strong> section on the batch page lists every one of them, with its own status.</p>
+
+    <table class="statuses">
+      <tr><th>Status</th><th>What it means</th></tr>
+      <tr><td><span class="pill neutral">PENDING</span></td><td>Waiting in line to be processed.</td></tr>
+      <tr><td><span class="pill blue">PROCESSING</span></td><td>Being read right now.</td></tr>
+      <tr><td><span class="pill ok">COMPLETED</span></td><td>Done. Its data is ready to review below.</td></tr>
+      <tr><td><span class="pill warn">FAILED</span></td><td>Something went wrong. An error message is shown; click <span class="ui">Retry</span> to try again.</td></tr>
+      <tr><td><span class="pill neutral">CANCELLED</span></td><td>Stopped manually (see below). Can also be retried.</td></tr>
+    </table>
+
+    <ol class="steps">
+      <li>Use the status dropdown above the job list to filter (for example, show only <span class="ui">Failed</span> jobs).</li>
+      <li>For a <span class="pill ok">COMPLETED</span> job, click <span class="ui">View records</span> to see the data extracted from that page right there, or <span class="ui">Download</span> to get the original file.</li>
+      <li>For a <span class="pill warn">FAILED</span> or <span class="pill neutral">CANCELLED</span> job, click <span class="ui">Retry</span>.</li>
+    </ol>
+
+    <div class="callout warn">
+      <span class="callout-label">Stopping a batch</span>
+      While a batch shows <span class="pill blue">PROCESSING</span>, a <span class="ui">Stop processing</span> button appears at the top.
+      Clicking it cancels every job that hasn't started yet and stops any that are currently running — useful if you submitted
+      the wrong link and want to abort before it finishes.
+    </div>
+  </div>
+
+  <!-- ============ STEP 5: REVIEW & CORRECT (the main event) ============ -->
+  <div class="section">
+    <div class="eyebrow">The most important step</div>
+    <h2 class="step-title"><span class="step-num">5</span> Reviewing and correcting records</h2>
+    <p class="lead">Once a job completes, it produces one or more <strong>records</strong> — the actual extracted data (names, IC numbers, dates, and so on). This is where you check the computer's work and fix anything it got wrong or couldn't read.</p>
+
+    <p>You can reach the records table in three places, all working the same way:</p>
+    <ol class="steps">
+      <li>Click <span class="ui">View records</span> on any completed job, to see just that page's data.</li>
+      <li>Scroll to the <strong>Review queue</strong> section on the batch page, to see every record in the batch at once, with search and filter tools.</li>
+      <li>On the home page, use <strong>All records</strong> to search across every batch at the same time.</li>
+    </ol>
+
+    <div class="mock">
+      <div class="mock-label">Records table</div>
+      <div class="mock-row" style="font-size:8.5pt;color:#8a8f98;font-weight:700;">
+        <span style="width:90px;">Status</span><span style="width:80px;">File</span><span style="flex:1;">Full Name</span><span style="flex:1;">IC Number</span>
+      </div>
+      <div class="mock-row">
+        <span class="pill warn" style="width:80px;text-align:center;">Needs review</span>
+        <span style="width:80px;font-size:8.5pt;color:#2f6fed;">page_04.pdf</span>
+        <span style="flex:1;font-size:9pt;">Ahmad bin Ismail</span>
+        <span style="flex:1;background:#fff3e0;border:1px solid #f2ddb0;border-radius:4px;padding:3px 6px;font-size:9pt;color:#b06a00;">(click to fill in)</span>
+      </div>
+    </div>
+
+    <h3 style="font-size:11.5pt;margin:20px 0 6px 0;">Understanding a record's status</h3>
+    <table class="statuses">
+      <tr><th>Status</th><th>What it means</th></tr>
+      <tr>
+        <td><span class="pill warn">Needs review</span></td>
+        <td>At least one field couldn't be read confidently and is left for you to fill in — its cell is highlighted and already open for typing.</td>
+      </tr>
+      <tr>
+        <td><span class="pill ok">Complete</span></td>
+        <td>Every field is filled in. No action needed unless you spot a mistake.</td>
+      </tr>
+    </table>
+
+    <h3 style="font-size:11.5pt;margin:20px 0 6px 0;">How to correct a field</h3>
+    <ol class="steps">
+      <li>Find the record's row, and the column for the field you want to fix (for example, <strong>Full Name</strong> or <strong>IC Number</strong>).</li>
+      <li>
+        If the cell has a pale orange background, it's a field the system couldn't read — it's already open for you to type into directly.
+        For any other cell, <strong>click it once</strong> to open it for editing.
+      </li>
+      <li>Type the correct value.</li>
+      <li>Click anywhere else, or press <strong>Enter</strong>, to save. There's no separate save button — it saves the moment you click away.</li>
+    </ol>
+
+    <div class="callout tip">
+      <span class="callout-label">Once every flagged field is filled in</span>
+      The record's status automatically changes from <span class="pill warn">Needs review</span> to <span class="pill ok">Complete</span> —
+      there's no separate "approve" button to click. Simply filling in the missing information is enough.
+    </div>
+
+    <div class="callout tip">
+      <span class="callout-label">Checking against the original</span>
+      Click the file name shown in the <strong>File</strong> column (for example <span class="ui">page_04.pdf</span>) to open the original
+      scanned page in a new tab, so you can compare it side-by-side with what was extracted before correcting anything.
+    </div>
+
+    <div class="role-note">
+      Admin accounts see a <span class="ui">Delete</span> link at the end of each row, for removing a record that shouldn't exist at all
+      (for example, a duplicate or a blank page misread as data). Reviewer accounts don't see this option — they can correct data freely, but not delete it.
+    </div>
+  </div>
+
+  <!-- ============ STEP 6: EXPORT ============ -->
+  <div class="section">
+    <div class="eyebrow">Getting your data out</div>
+    <h2 class="step-title"><span class="step-num">6</span> Exporting results</h2>
+    <p class="lead">Once you're happy with a batch's records, export them to a spreadsheet.</p>
+
+    <div class="mock">
+      <div class="mock-label">Export</div>
+      <div class="mock-row">
+        <span class="mock-btn ghost">XLSX ▾</span>
+        <span class="mock-btn">Generate export</span>
+      </div>
+    </div>
+
+    <ol class="steps">
+      <li>Open the batch and scroll to the <strong>Export</strong> section at the bottom.</li>
+      <li>Choose a format: <span class="ui">XLSX</span> (Excel) or <span class="ui">CSV</span>.</li>
+      <li>Click <span class="ui">Generate export</span>.</li>
+      <li>Wait for its status to reach <span class="pill ok">COMPLETED</span>, then click <span class="ui">Download</span>.</li>
+    </ol>
+
+    <div class="callout tip">
+      <span class="callout-label">Tip</span>
+      You can generate as many exports as you like — for example, one now and another later after making more corrections. Each one is saved in the list with its own download link.
+    </div>
+  </div>
+
+  <footer class="end">
+    Marriage Register OCR — User Guide. If something on screen doesn't match this guide, or a button doesn't do what's described here, contact your administrator.
+  </footer>
+
+</body>
+</html>

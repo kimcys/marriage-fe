@@ -1,5 +1,5 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
-import { catchError, retry, throwError, timer } from 'rxjs';
+import { catchError, from, map, mergeMap, of, retry, throwError, timer } from 'rxjs';
 
 import { ApiClientError } from '../core/api-error';
 
@@ -12,6 +12,25 @@ interface BackendErrorPayload {
 
 const RETRYABLE_STATUSES = new Set([0, 502, 503, 504]);
 const MAX_RETRIES = 2;
+
+/** A `responseType: 'blob'` request (file downloads) gets its error body
+ * back as a Blob too, even for the backend's normal JSON error envelope --
+ * it has to be read back to text and parsed before the payload can be
+ * pulled out the usual way. */
+function backendPayload$(error: HttpErrorResponse) {
+  if (error.error instanceof Blob) {
+    return from(error.error.text()).pipe(
+      map((text) => {
+        try {
+          return (JSON.parse(text) as { error?: BackendErrorPayload }).error ?? null;
+        } catch {
+          return null;
+        }
+      }),
+    );
+  }
+  return of((error.error as { error?: BackendErrorPayload } | null)?.error ?? null);
+}
 
 /**
  * Two responsibilities, applied to every HTTP call:
@@ -39,16 +58,19 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
     }),
     catchError((error: unknown) => {
       if (error instanceof HttpErrorResponse) {
-        const payload = (error.error as { error?: BackendErrorPayload } | null)?.error;
-        return throwError(
-          () =>
-            new ApiClientError(
-              error.status,
-              payload?.code ?? 'UNKNOWN_ERROR',
-              payload?.message ?? error.message,
-              payload?.request_id,
-              payload?.details ?? null,
+        return backendPayload$(error).pipe(
+          mergeMap((payload) =>
+            throwError(
+              () =>
+                new ApiClientError(
+                  error.status,
+                  payload?.code ?? 'UNKNOWN_ERROR',
+                  payload?.message ?? error.message,
+                  payload?.request_id,
+                  payload?.details ?? null,
+                ),
             ),
+          ),
         );
       }
       return throwError(() => error);

@@ -5,7 +5,38 @@
   @if (batch(); as b) {
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-heading-sm font-semibold text-carbon">{{ b.name }}</h1>
+        @if (editingName()) {
+          <div class="flex items-center gap-2">
+            <input
+              type="text"
+              [(ngModel)]="editingNameValue"
+              class="rounded-inputs border border-hairline bg-frost px-3 py-1 text-heading-sm font-semibold text-carbon focus:outline-none focus:ring-2 focus:ring-apple-blue"
+              (keydown.enter)="saveName()"
+              (keydown.escape)="cancelEditName()"
+            />
+            <button
+              type="button"
+              class="text-caption text-link-blue hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+              [disabled]="savingName() || !editingNameValue.trim()"
+              (click)="saveName()"
+            >
+              {{ savingName() ? 'Saving…' : 'Save' }}
+            </button>
+            <button
+              type="button"
+              class="text-caption text-ash hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+              [disabled]="savingName()"
+              (click)="cancelEditName()"
+            >
+              Cancel
+            </button>
+          </div>
+        } @else {
+          <div class="flex items-center gap-2">
+            <h1 class="text-heading-sm font-semibold text-carbon">{{ b.name }}</h1>
+            <button type="button" class="text-caption text-link-blue hover:underline" (click)="startEditName()">Rename</button>
+          </div>
+        }
         @if (b.description) {
           <p class="text-body-sm text-ash">{{ b.description }}</p>
         }
@@ -159,7 +190,24 @@
               <button type="button" class="text-caption text-link-blue hover:underline" (click)="retryJob(job)">Retry</button>
             }
             @if (job.status === 'COMPLETED') {
-              <a [href]="downloadJobUrl(job)" class="text-caption text-link-blue hover:underline">Download</a>
+              <span class="inline-flex items-center gap-2">
+                <button
+                  type="button"
+                  class="text-caption text-link-blue hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+                  [disabled]="isPreviewingJob(job.id)"
+                  (click)="previewJob(job)"
+                >
+                  {{ isPreviewingJob(job.id) ? 'Opening…' : 'Preview' }}
+                </button>
+                <button
+                  type="button"
+                  class="text-caption text-link-blue hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+                  [disabled]="isDownloadingJob(job.id)"
+                  (click)="downloadJob(job)"
+                >
+                  {{ isDownloadingJob(job.id) ? 'Downloading…' : 'Download' }}
+                </button>
+              </span>
             }
           </span>
           <span class="text-right">
@@ -310,7 +358,22 @@
               </div>
               <div class="flex items-center gap-3">
                 @if (exportItem.status === 'COMPLETED') {
-                  <a [href]="downloadExportUrl(exportItem)" class="text-caption text-link-blue hover:underline">Download</a>
+                  <button
+                    type="button"
+                    class="text-caption text-link-blue hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+                    [disabled]="isPreviewingExport(exportItem.id)"
+                    (click)="previewExport(exportItem)"
+                  >
+                    {{ isPreviewingExport(exportItem.id) ? 'Opening…' : 'Preview' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="text-caption text-link-blue hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+                    [disabled]="isDownloadingExport(exportItem.id)"
+                    (click)="downloadExport(exportItem)"
+                  >
+                    {{ isDownloadingExport(exportItem.id) ? 'Downloading…' : 'Download' }}
+                  </button>
                 }
                 @if (auth.isAdmin()) {
                   <button type="button" class="text-caption text-error hover:underline" (click)="deleteExport(exportItem)">Delete</button>

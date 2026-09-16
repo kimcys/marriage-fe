@@ -196,6 +196,10 @@ export class ApiService {
     return firstValueFrom(this.http.get<BatchResponse>(`${API_BASE}/batches/${batchId}`));
   }
 
+  renameBatch(batchId: string, name: string): Promise<BatchResponse> {
+    return firstValueFrom(this.http.patch<BatchResponse>(`${API_BASE}/batches/${batchId}`, { name }));
+  }
+
   /** Deletes the batch and everything scoped to it -- documents, jobs,
    * records, OneDrive submissions, exports -- irreversibly. */
   deleteBatch(batchId: string): Promise<void> {
@@ -299,15 +303,21 @@ export class ApiService {
     return firstValueFrom(this.http.post<JobResponse>(`${API_BASE}/jobs/${jobId}/retry`, {}));
   }
 
-  downloadJobUrl(jobId: string): string {
-    return `${API_BASE}/jobs/${jobId}/download`;
+  /** The download route requires a Bearer token, which only a real
+   * HttpClient request (routed through the auth interceptor) can send -- a
+   * plain `<a href>` can't, so callers fetch the blob here and save/open it
+   * themselves (see core/file-download.ts). */
+  downloadJobFile(jobId: string): Promise<Blob> {
+    return firstValueFrom(this.http.get(`${API_BASE}/jobs/${jobId}/download`, { responseType: 'blob' }));
   }
 
   /** The original source file (PDF/image) a record's values were OCR'd
    * from -- lets a reviewer open it to check the extracted data against
-   * the actual scanned page. */
-  documentDownloadUrl(batchId: string, documentId: string): string {
-    return `${API_BASE}/batches/${batchId}/documents/${documentId}/download`;
+   * the actual scanned page. Same Bearer-token requirement as downloadJobFile. */
+  downloadDocumentFile(batchId: string, documentId: string): Promise<Blob> {
+    return firstValueFrom(
+      this.http.get(`${API_BASE}/batches/${batchId}/documents/${documentId}/download`, { responseType: 'blob' }),
+    );
   }
 
   // ---- Records ----
@@ -443,8 +453,9 @@ export class ApiService {
     return firstValueFrom(this.http.get<ExportResponse>(`${API_BASE}/exports/${exportId}`));
   }
 
-  downloadExportUrl(exportId: string): string {
-    return `${API_BASE}/exports/${exportId}/download`;
+  /** Same Bearer-token requirement as downloadJobFile. */
+  downloadExportFile(exportId: string): Promise<Blob> {
+    return firstValueFrom(this.http.get(`${API_BASE}/exports/${exportId}/download`, { responseType: 'blob' }));
   }
 
   deleteExport(exportId: string): Promise<void> {

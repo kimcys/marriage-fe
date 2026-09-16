@@ -2,6 +2,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { ApiClientError } from '../../core/api-error';
+import { openBlob, saveBlob } from '../../core/file-download';
 import { compareByFieldPriority, isKnownRecordType, RECORD_TYPE_FIELDS } from '../../core/record-fields';
 import { ApiService, RecordResponse } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
@@ -14,6 +15,8 @@ export interface EditableRecord extends RecordResponse {
   editingField?: string | null;
   editingValue?: string;
   savingField?: string | null;
+  openingSourceFile?: boolean;
+  downloadingSourceFile?: boolean;
 }
 
 /** Shared record table: no separate edit/approve/reject workflow -- status
@@ -140,8 +143,41 @@ export class RecordsTableComponent {
     return !!record.batch_id && !!record.document_id;
   }
 
-  sourceFileUrl(record: EditableRecord): string {
-    return this.api.documentDownloadUrl(record.batch_id!, record.document_id!);
+  /** The download route needs a Bearer token a plain `<a href>` can't send,
+   * so this fetches the file as a blob (through HttpClient, which the auth
+   * interceptor attaches the token to) and opens it in a new tab instead. */
+  async openSourceFile(record: EditableRecord): Promise<void> {
+    if (record.openingSourceFile) {
+      return;
+    }
+    record.openingSourceFile = true;
+    try {
+      const blob = await this.api.downloadDocumentFile(record.batch_id!, record.document_id!);
+      openBlob(blob);
+    } catch (error) {
+      console.error(error);
+      this.toast.error(error instanceof ApiClientError ? error.friendlyMessage() : 'Something went wrong.');
+    } finally {
+      record.openingSourceFile = false;
+    }
+  }
+
+  /** Same Bearer-token fetch as openSourceFile above, but saves the file to
+   * disk instead of opening it in a new tab. */
+  async downloadSourceFile(record: EditableRecord): Promise<void> {
+    if (record.downloadingSourceFile) {
+      return;
+    }
+    record.downloadingSourceFile = true;
+    try {
+      const blob = await this.api.downloadDocumentFile(record.batch_id!, record.document_id!);
+      saveBlob(blob, record.original_filename ?? 'source-file');
+    } catch (error) {
+      console.error(error);
+      this.toast.error(error instanceof ApiClientError ? error.friendlyMessage() : 'Something went wrong.');
+    } finally {
+      record.downloadingSourceFile = false;
+    }
   }
 
   async deleteRecord(record: EditableRecord): Promise<void> {
