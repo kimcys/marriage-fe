@@ -5,7 +5,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { EditableRecord, RecordsTableComponent } from '../../components/records-table/records-table.component';
 import { ApiClientError } from '../../core/api-error';
-import { openBlob, saveBlob, withoutExtension } from '../../core/file-download';
+import { saveBlob, withoutExtension } from '../../core/file-download';
 import {
   ApiService,
   BatchResponse,
@@ -73,7 +73,6 @@ export class BatchDetailPage implements OnInit, OnDestroy {
   protected readonly jobRecords = signal<Record<string, EditableRecord[]>>({});
   protected readonly loadingRecordsForJob = signal<Set<string>>(new Set());
   protected readonly downloadingJobIds = signal<Set<string>>(new Set());
-  protected readonly previewingJobIds = signal<Set<string>>(new Set());
 
   // ---- Batch-wide records review queue: paginated + filterable (status,
   // free-text over field values, and which OneDrive link a record came from),
@@ -92,7 +91,6 @@ export class BatchDetailPage implements OnInit, OnDestroy {
   protected readonly exports = signal<ExportResponse[]>([]);
   protected readonly exporting = signal(false);
   protected readonly downloadingExportIds = signal<Set<string>>(new Set());
-  protected readonly previewingExportIds = signal<Set<string>>(new Set());
 
   protected exportFormat: ExportFormat = 'XLSX';
 
@@ -403,31 +401,6 @@ export class BatchDetailPage implements OnInit, OnDestroy {
     }
   }
 
-  isPreviewingJob(jobId: string): boolean {
-    return this.previewingJobIds().has(jobId);
-  }
-
-  /** Same Bearer-token fetch as downloadJob below, but opens the result in a
-   * new tab instead of forcing it to disk. */
-  async previewJob(job: JobResponse): Promise<void> {
-    if (this.isPreviewingJob(job.id)) {
-      return;
-    }
-    this.previewingJobIds.update((ids) => new Set(ids).add(job.id));
-    try {
-      const blob = await this.api.downloadJobFile(job.id);
-      openBlob(blob);
-    } catch (error) {
-      this.handleError(error);
-    } finally {
-      this.previewingJobIds.update((ids) => {
-        const next = new Set(ids);
-        next.delete(job.id);
-        return next;
-      });
-    }
-  }
-
   isDownloadingJob(jobId: string): boolean {
     return this.downloadingJobIds().has(jobId);
   }
@@ -650,31 +623,6 @@ export class BatchDetailPage implements OnInit, OnDestroy {
       this.handleError(error);
     } finally {
       this.exporting.set(false);
-    }
-  }
-
-  isPreviewingExport(exportId: string): boolean {
-    return this.previewingExportIds().has(exportId);
-  }
-
-  /** Same Bearer-token fetch as downloadExport below, but opens the file in
-   * a new tab instead of forcing it to disk. */
-  async previewExport(exportItem: ExportResponse): Promise<void> {
-    if (this.isPreviewingExport(exportItem.id)) {
-      return;
-    }
-    this.previewingExportIds.update((ids) => new Set(ids).add(exportItem.id));
-    try {
-      const blob = await this.api.downloadExportFile(exportItem.id);
-      openBlob(blob);
-    } catch (error) {
-      this.handleError(error);
-    } finally {
-      this.previewingExportIds.update((ids) => {
-        const next = new Set(ids);
-        next.delete(exportItem.id);
-        return next;
-      });
     }
   }
 

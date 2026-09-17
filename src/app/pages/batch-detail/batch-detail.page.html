@@ -190,24 +190,14 @@
               <button type="button" class="text-caption text-link-blue hover:underline" (click)="retryJob(job)">Retry</button>
             }
             @if (job.status === 'COMPLETED') {
-              <span class="inline-flex items-center gap-2">
-                <button
-                  type="button"
-                  class="text-caption text-link-blue hover:underline disabled:cursor-not-allowed disabled:opacity-40"
-                  [disabled]="isPreviewingJob(job.id)"
-                  (click)="previewJob(job)"
-                >
-                  {{ isPreviewingJob(job.id) ? 'Opening…' : 'Preview' }}
-                </button>
-                <button
-                  type="button"
-                  class="text-caption text-link-blue hover:underline disabled:cursor-not-allowed disabled:opacity-40"
-                  [disabled]="isDownloadingJob(job.id)"
-                  (click)="downloadJob(job)"
-                >
-                  {{ isDownloadingJob(job.id) ? 'Downloading…' : 'Download' }}
-                </button>
-              </span>
+              <button
+                type="button"
+                class="text-caption text-link-blue hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+                [disabled]="isDownloadingJob(job.id)"
+                (click)="downloadJob(job)"
+              >
+                {{ isDownloadingJob(job.id) ? 'Downloading…' : 'Download' }}
+              </button>
             }
           </span>
           <span class="text-right">
@@ -358,14 +348,6 @@
               </div>
               <div class="flex items-center gap-3">
                 @if (exportItem.status === 'COMPLETED') {
-                  <button
-                    type="button"
-                    class="text-caption text-link-blue hover:underline disabled:cursor-not-allowed disabled:opacity-40"
-                    [disabled]="isPreviewingExport(exportItem.id)"
-                    (click)="previewExport(exportItem)"
-                  >
-                    {{ isPreviewingExport(exportItem.id) ? 'Opening…' : 'Preview' }}
-                  </button>
                   <button
                     type="button"
                     class="text-caption text-link-blue hover:underline disabled:cursor-not-allowed disabled:opacity-40"
