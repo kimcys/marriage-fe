@@ -18,5 +18,10 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./pages/batch-detail/batch-detail.page').then((m) => m.BatchDetailPage),
   },
+  {
+    path: 'records',
+    canActivate: [authGuard],
+    loadComponent: () => import('./pages/records/records.page').then((m) => m.RecordsPage),
+  },
   { path: '**', redirectTo: 'batches' },
 ];

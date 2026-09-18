@@ -74,6 +74,14 @@ export interface BatchResponse {
   completed_at: string | null;
 }
 
+export interface BatchStatsResponse {
+  total: number;
+  processing: number;
+  completed: number;
+  needs_attention: number;
+  by_status: Record<BatchStatus, number>;
+}
+
 export interface JobResponse {
   id: string;
   batch_id: string | null;
@@ -194,6 +202,12 @@ export class ApiService {
 
   getBatch(batchId: string): Promise<BatchResponse> {
     return firstValueFrom(this.http.get<BatchResponse>(`${API_BASE}/batches/${batchId}`));
+  }
+
+  /** Dashboard stat-card counts (total/processing/completed/needs-attention),
+   * computed live by the backend from the current batches table. */
+  getBatchStats(): Promise<BatchStatsResponse> {
+    return firstValueFrom(this.http.get<BatchStatsResponse>(`${API_BASE}/batches/stats`));
   }
 
   renameBatch(batchId: string, name: string): Promise<BatchResponse> {

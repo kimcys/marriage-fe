@@ -1,164 +1,140 @@
-<div class="space-y-16">
+<div class="flex flex-col gap-6">
+  <div class="flex flex-col gap-1">
+    <h1 class="m-0 text-heading font-semibold text-ink">Batches</h1>
+    <p class="m-0 text-body text-mid-gray">Manage OneDrive intake batches and monitor OCR progress.</p>
+  </div>
 
-  <section class="space-y-4">
-    <h2 class="text-caption font-semibold uppercase tracking-wide text-ash">Create a batch</h2>
-    <div class="flex flex-wrap items-end gap-3">
-      <div class="flex flex-col gap-1">
-        <label class="text-caption text-ash">Name</label>
+  @if (stats(); as s) {
+    <div class="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
+      <div class="flex flex-col gap-2 rounded-cards border border-hairline bg-paper p-5 shadow-card">
+        <span class="text-caption font-medium uppercase tracking-wide text-mid-gray">Total batches</span>
+        <span class="font-geist-mono text-heading-lg font-semibold text-ink">{{ pad(s.total) }}</span>
+        <span class="text-body text-mid-gray">All intakes</span>
+      </div>
+      <div class="flex flex-col gap-2 rounded-cards border border-hairline bg-paper p-5 shadow-card">
+        <span class="text-caption font-medium uppercase tracking-wide text-mid-gray">Processing</span>
+        <span class="font-geist-mono text-heading-lg font-semibold text-ink">{{ pad(s.processing) }}</span>
+        <span class="text-body text-mid-gray">OCR running</span>
+      </div>
+      <div class="flex flex-col gap-2 rounded-cards border border-hairline bg-paper p-5 shadow-card">
+        <span class="text-caption font-medium uppercase tracking-wide text-mid-gray">Completed</span>
+        <span class="font-geist-mono text-heading-lg font-semibold text-ink">{{ pad(s.completed) }}</span>
+        <span class="text-body text-mid-gray">Ready to export</span>
+      </div>
+      <div class="flex flex-col gap-2 rounded-cards border border-hairline bg-paper p-5 shadow-card">
+        <span class="text-caption font-medium uppercase tracking-wide text-mid-gray">Needs attention</span>
+        <span class="font-geist-mono text-heading-lg font-semibold text-ember">{{ pad(s.needs_attention) }}</span>
+        <span class="text-body text-mid-gray">Failed or cancelled</span>
+      </div>
+    </div>
+  }
+
+  <div class="flex flex-col gap-4 rounded-cards border border-hairline bg-paper p-5 shadow-card">
+    <div class="flex flex-col gap-1">
+      <span class="text-caption font-medium uppercase tracking-wide text-mid-gray">New batch</span>
+      <span class="text-body text-mid-gray">Name the intake, then attach a OneDrive link inside it.</span>
+    </div>
+    <div class="flex flex-wrap items-end gap-2">
+      <div class="flex min-w-0 flex-1 flex-col gap-1 basis-[220px]">
+        <label class="text-body font-medium text-ink">Name</label>
         <input
           type="text"
           [(ngModel)]="newBatchName"
           placeholder="e.g. Kajang Register Vol. 12"
-          class="w-64 rounded-inputs border border-hairline bg-frost px-3 py-2 text-body-sm text-carbon focus:outline-none focus:ring-2 focus:ring-apple-blue"
+          class="h-9 w-full rounded-inputs bg-canvas px-3.5 text-body text-ink"
         />
       </div>
-      <div class="flex flex-col gap-1">
-        <label class="text-caption text-ash">Description (optional)</label>
+      <div class="flex min-w-0 flex-1 flex-col gap-1 basis-[220px]">
+        <label class="text-body font-medium text-ink">Description <span class="font-normal text-mid-gray">(optional)</span></label>
         <input
           type="text"
           [(ngModel)]="newBatchDescription"
-          class="w-80 rounded-inputs border border-hairline bg-frost px-3 py-2 text-body-sm text-carbon focus:outline-none focus:ring-2 focus:ring-apple-blue"
+          placeholder="Add context for this batch"
+          class="h-9 w-full rounded-inputs bg-canvas px-3.5 text-body text-ink"
         />
       </div>
       <button
         type="button"
-        class="rounded-buttons bg-apple-blue px-[15px] py-[11px] text-body text-ice disabled:cursor-not-allowed disabled:opacity-40"
+        class="h-9 flex-none rounded-buttons bg-ink px-4 text-body font-medium text-surface-alt hover:bg-ink-soft disabled:cursor-not-allowed disabled:opacity-40"
         [disabled]="!newBatchName.trim() || creating()"
         (click)="createBatch()"
       >
         {{ creating() ? 'Creating…' : 'Create batch' }}
       </button>
     </div>
-  </section>
+  </div>
 
-  <section class="space-y-4 border-t border-hairline pt-8">
-    <div class="flex items-center justify-between">
-      <h2 class="text-caption font-semibold uppercase tracking-wide text-ash">Batches ({{ total() }})</h2>
-      <button type="button" class="text-caption text-link-blue hover:underline" (click)="load(offset())">Refresh</button>
+  <div class="overflow-hidden rounded-cards border border-hairline bg-paper shadow-card">
+    <div class="flex items-center gap-2 border-b border-hairline p-5">
+      <span class="text-subheading font-semibold tracking-tight text-ink">All batches</span>
+      <span class="rounded-buttons bg-canvas px-2 py-0.5 font-geist-mono text-caption font-medium text-ink-soft">{{ pad(total()) }}</span>
+      <button type="button" class="ml-auto text-caption text-ink hover:text-mid-gray" (click)="load(offset())">Refresh</button>
     </div>
 
     @if (loading()) {
-      <p class="text-body-sm text-ash">Loading…</p>
+      <p class="p-5 text-body text-mid-gray">Loading…</p>
     } @else if (batches().length === 0) {
-      <p class="text-body-sm text-ash">No batches yet. Create one above to get started.</p>
+      <p class="p-5 text-body text-mid-gray">No batches yet. Create one above to get started.</p>
     } @else {
-      <div class="divide-y divide-hairline">
-        @for (batch of batches(); track batch.id) {
-          <div class="flex items-center justify-between gap-4 py-3">
-            <a [routerLink]="['/batches', batch.id]" class="flex flex-1 items-center justify-between gap-4 hover:bg-ice">
-              <div>
-                <p class="text-body-sm font-medium text-carbon">{{ batch.name }}</p>
+      <div class="overflow-x-auto">
+        <div class="min-w-[560px]">
+          <div class="grid grid-cols-[minmax(0,1fr)_150px_96px] gap-3 border-b border-hairline bg-surface-alt px-5 py-2">
+            <span class="text-caption font-medium uppercase tracking-wide text-mid-gray">Batch</span>
+            <span class="text-caption font-medium uppercase tracking-wide text-mid-gray">Status</span>
+            <span class="text-right text-caption font-medium uppercase tracking-wide text-mid-gray">Actions</span>
+          </div>
+          @for (batch of batches(); track batch.id) {
+            <div class="grid grid-cols-[minmax(0,1fr)_150px_96px] items-center gap-3 border-b border-hairline px-5 py-3 hover:bg-surface-alt">
+              <a [routerLink]="['/batches', batch.id]" class="flex min-w-0 flex-col text-ink">
+                <span class="truncate text-body font-medium text-ink">{{ batch.name }}</span>
                 @if (batch.description) {
-                  <p class="text-caption text-ash">{{ batch.description }}</p>
+                  <span class="truncate text-caption text-mid-gray">{{ batch.description }}</span>
+                }
+              </a>
+              <div>
+                <span class="whitespace-nowrap rounded-badges px-2 py-0.5 text-caption font-medium" [class]="statusClasses(batch.status)">
+                  {{ batch.status }}
+                </span>
+              </div>
+              <div class="flex items-center justify-end gap-1">
+                <a [routerLink]="['/batches', batch.id]" class="h-7 rounded-buttons border border-hairline px-2.5 text-body-sm font-medium text-ink hover:bg-canvas flex items-center">
+                  Open
+                </a>
+                @if (auth.isAdmin()) {
+                  <button
+                    type="button"
+                    class="h-7 w-7 rounded-buttons text-body-sm text-mid-gray hover:bg-canvas hover:text-ember"
+                    (click)="deleteBatch(batch)"
+                  >
+                    ✕
+                  </button>
                 }
               </div>
-              <span class="rounded-tags px-2.5 py-1 text-caption font-medium" [class]="statusClasses(batch.status)">
-                {{ batch.status }}
-              </span>
-            </a>
-            @if (auth.isAdmin()) {
-              <button type="button" class="text-caption text-error hover:underline" (click)="deleteBatch(batch)">
-                Delete
+            </div>
+          }
+          <div class="flex items-center justify-between gap-3 px-5 py-3">
+            <span class="font-geist-mono text-caption text-mid-gray">{{ rangeLabel() }}</span>
+            <div class="flex gap-2">
+              <button
+                type="button"
+                class="h-8 rounded-buttons border border-hairline px-3 text-body-sm font-medium text-mid-gray hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-40"
+                [disabled]="offset() === 0"
+                (click)="previousPage()"
+              >
+                Previous
               </button>
-            }
+              <button
+                type="button"
+                class="h-8 rounded-buttons bg-canvas px-3 text-body-sm font-medium text-ink hover:bg-canvas-hover disabled:cursor-not-allowed disabled:opacity-40"
+                [disabled]="!hasNextPage()"
+                (click)="nextPage()"
+              >
+                Next
+              </button>
+            </div>
           </div>
-        }
-      </div>
-
-      <div class="mt-4 flex items-center justify-between border-t border-hairline pt-3">
-        <span class="text-caption text-ash">{{ rangeLabel() }}</span>
-        <div class="flex gap-2">
-          <button
-            type="button"
-            class="rounded-buttons border border-link-blue px-3 py-1.5 text-caption text-link-blue disabled:cursor-not-allowed disabled:opacity-40"
-            [disabled]="offset() === 0"
-            (click)="previousPage()"
-          >
-            Previous
-          </button>
-          <button
-            type="button"
-            class="rounded-buttons border border-link-blue px-3 py-1.5 text-caption text-link-blue disabled:cursor-not-allowed disabled:opacity-40"
-            [disabled]="!hasNextPage()"
-            (click)="nextPage()"
-          >
-            Next
-          </button>
         </div>
       </div>
     }
-  </section>
-
-  <!-- All records across every batch -- the landing page's "everything
-       extracted so far" overview, filterable by record type (a single link
-       can mix Nikah/Cerai/Rujuk content) independent of which batch it
-       came from. -->
-  <section class="space-y-4 border-t border-hairline pt-8">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <h2 class="text-caption font-semibold uppercase tracking-wide text-ash">All records ({{ recordsTotal() }})</h2>
-      <div class="flex flex-wrap items-center gap-2">
-        <input
-          type="text"
-          [(ngModel)]="recordsQuery"
-          (ngModelChange)="onRecordsQueryChanged()"
-          placeholder="Search any field (Bil, IC, name)…"
-          class="w-56 rounded-inputs border border-hairline bg-frost px-2 py-1 text-caption text-carbon focus:outline-none focus:ring-2 focus:ring-apple-blue"
-        />
-        <select
-          [(ngModel)]="recordTypeFilter"
-          (ngModelChange)="onRecordsFilterChanged()"
-          class="rounded-inputs border border-hairline bg-frost px-2 py-1 text-caption text-carbon focus:outline-none focus:ring-2 focus:ring-apple-blue"
-        >
-          <option value="ALL">All record types</option>
-          <option value="NIKAH">Nikah</option>
-          <option value="CERAI">Cerai</option>
-          <option value="RUJUK">Rujuk</option>
-        </select>
-        <select
-          [(ngModel)]="recordsStatusFilter"
-          (ngModelChange)="onRecordsFilterChanged()"
-          class="rounded-inputs border border-hairline bg-frost px-2 py-1 text-caption text-carbon focus:outline-none focus:ring-2 focus:ring-apple-blue"
-        >
-          <option value="ALL">All statuses</option>
-          <option value="PENDING_REVIEW">Needs review</option>
-          <option value="APPROVED">Complete</option>
-          <option value="REJECTED">Rejected</option>
-        </select>
-      </div>
-    </div>
-
-    @if (recordsLoading()) {
-      <p class="text-body-sm text-ash">Loading…</p>
-    } @else if (records().length === 0) {
-      <p class="text-body-sm text-ash">No records match this filter.</p>
-    } @else {
-      <app-records-table
-        [records]="records()"
-        (recordUpdated)="onRecordUpdated($event)"
-        (recordDeleted)="onRecordDeleted($event)"
-      />
-
-      <div class="mt-4 flex items-center justify-between border-t border-hairline pt-3">
-        <span class="text-caption text-ash">{{ recordsRangeLabel() }}</span>
-        <div class="flex gap-2">
-          <button
-            type="button"
-            class="rounded-buttons border border-link-blue px-3 py-1.5 text-caption text-link-blue disabled:cursor-not-allowed disabled:opacity-40"
-            [disabled]="recordsOffset() === 0"
-            (click)="recordsPreviousPage()"
-          >
-            Previous
-          </button>
-          <button
-            type="button"
-            class="rounded-buttons border border-link-blue px-3 py-1.5 text-caption text-link-blue disabled:cursor-not-allowed disabled:opacity-40"
-            [disabled]="!recordsHasNextPage()"
-            (click)="recordsNextPage()"
-          >
-            Next
-          </button>
-        </div>
-      </div>
-    }
-  </section>
+  </div>
 </div>

@@ -1,22 +1,22 @@
 <!-- Wrapped so a wide table (many mixed Nikah/Cerai/Rujuk columns) scrolls
      horizontally instead of forcing the page itself to. -->
-<div class="overflow-x-auto rounded-cards border border-hairline">
-  <table class="w-full min-w-max border-collapse text-body-sm">
+<div class="overflow-x-auto">
+  <table class="w-full min-w-max border-collapse text-body">
     <thead>
-      <tr class="border-b border-hairline bg-pebble text-caption uppercase tracking-wide text-ash">
-        <th class="whitespace-nowrap px-3 py-2 text-left">Status</th>
-        <th class="whitespace-nowrap px-3 py-2 text-left">File</th>
+      <tr class="border-b border-t border-hairline bg-surface-alt text-caption font-medium uppercase tracking-wide text-mid-gray">
+        <th class="whitespace-nowrap px-5 py-2 text-left">Status</th>
+        <th class="whitespace-nowrap px-5 py-2 text-left">File</th>
         @for (column of recordColumns(); track column) {
-          <th class="whitespace-nowrap px-3 py-2 text-left">{{ column }}</th>
+          <th class="whitespace-nowrap px-5 py-2 text-left">{{ column }}</th>
         }
-        <th class="whitespace-nowrap px-3 py-2 text-left"></th>
+        <th class="whitespace-nowrap px-5 py-2 text-left"></th>
       </tr>
     </thead>
     <tbody>
       @for (record of records; track record.id) {
         <tr class="border-b border-hairline">
-          <td class="whitespace-nowrap px-3 py-2 align-top">
-            <span class="rounded-tags px-2.5 py-1 text-caption font-medium" [class]="recordStatusClasses(record)">
+          <td class="whitespace-nowrap px-5 py-3 align-top">
+            <span class="rounded-badges px-2 py-0.5 text-caption font-medium" [class]="recordStatusClasses(record)">
               {{ recordStatusLabel(record) }}
             </span>
             @if (record.missing_fields.length > 0 && record.validation_issues.length > 0) {
@@ -26,42 +26,44 @@
                    contradict the "Complete" pill above. -->
               <div class="mt-1 flex flex-wrap gap-1">
                 @for (issue of record.validation_issues; track issue) {
-                  <span class="rounded-tags bg-warning-bg px-1.5 py-0.5 text-caption text-warning" [title]="issue">{{ issue }}</span>
+                  <span class="rounded-badges bg-warning-bg px-1.5 py-0.5 text-caption text-warning" [title]="issue">{{ issue }}</span>
                 }
               </div>
             }
           </td>
-          <td class="min-w-[9rem] px-3 py-2 align-top">
+          <td class="min-w-[9rem] px-5 py-3 align-top">
             @if (hasSourceFile(record)) {
-              <div class="space-y-1">
-                <p class="max-w-[12rem] truncate text-caption text-carbon" [title]="record.original_filename ?? ''">
+              <div class="flex flex-col gap-1">
+                <p class="max-w-[12rem] truncate text-caption text-ink" [title]="record.original_filename ?? ''">
                   {{ record.original_filename ?? 'Source file' }}
                 </p>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-1">
                   <button
                     type="button"
-                    class="text-caption text-link-blue hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+                    class="flex h-7 w-7 items-center justify-center rounded-buttons text-ink hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-40"
                     [disabled]="record.openingSourceFile"
+                    [title]="record.openingSourceFile ? 'Opening…' : 'Preview'"
                     (click)="openSourceFile(record)"
                   >
-                    {{ record.openingSourceFile ? 'Opening…' : 'Preview' }}
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
                   </button>
                   <button
                     type="button"
-                    class="text-caption text-link-blue hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+                    class="flex h-7 w-7 items-center justify-center rounded-buttons text-ink hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-40"
                     [disabled]="record.downloadingSourceFile"
+                    [title]="record.downloadingSourceFile ? 'Downloading…' : 'Download'"
                     (click)="downloadSourceFile(record)"
                   >
-                    {{ record.downloadingSourceFile ? 'Downloading…' : 'Download' }}
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
                   </button>
                 </div>
               </div>
             } @else {
-              <span class="text-caption text-ash">—</span>
+              <span class="text-caption text-mid-gray">—</span>
             }
           </td>
           @for (column of recordColumns(); track column) {
-            <td class="min-w-[9rem] px-3 py-2 align-top">
+            <td class="min-w-[9rem] px-5 py-3 align-top">
               @if (isEditingCell(record, column)) {
                 <input
                   type="text"
@@ -71,20 +73,20 @@
                   (keydown.enter)="$any($event.target).blur()"
                   [ngModelOptions]="{standalone: true}"
                   [class]="isMissingCell(record, column)
-                    ? 'w-full rounded-inputs border border-warning bg-warning-bg px-2 py-1 text-body-sm text-carbon focus:outline-none focus:ring-2 focus:ring-apple-blue'
-                    : 'w-full rounded-inputs border border-hairline bg-frost px-2 py-1 text-body-sm text-carbon focus:outline-none focus:ring-2 focus:ring-apple-blue'"
+                    ? 'w-full rounded-inputs border border-warning bg-warning-bg px-2 py-1 text-body text-ink'
+                    : 'w-full rounded-inputs bg-canvas px-2 py-1 text-body text-ink'"
                 />
               } @else {
                 <span
-                  class="block cursor-text whitespace-pre-line rounded-inputs px-1 py-1 text-carbon hover:bg-pebble"
+                  class="block cursor-text whitespace-pre-line rounded-inputs px-1 py-1 text-ink hover:bg-canvas"
                   (click)="startCellEdit(record, column)"
                 >{{ cellValue(record, column) }}</span>
               }
             </td>
           }
-          <td class="whitespace-nowrap px-3 py-2 align-top">
+          <td class="whitespace-nowrap px-5 py-3 align-top">
             @if (auth.isAdmin()) {
-              <button type="button" class="text-caption text-error hover:underline" (click)="deleteRecord(record)">
+              <button type="button" class="text-caption text-mid-gray hover:text-ember" (click)="deleteRecord(record)">
                 Delete
               </button>
             }

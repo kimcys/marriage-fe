@@ -1,40 +1,63 @@
-<div class="mx-auto max-w-sm space-y-6 pt-16">
-  <div>
-    <h1 class="text-heading-sm font-semibold text-carbon">Sign in</h1>
-    <p class="text-body-sm text-ash">Marriage Register OCR</p>
+<div class="flex min-h-screen flex-col p-6">
+  <div class="flex items-center gap-2">
+    <span class="block h-3.5 w-3.5 rounded-md bg-ink"></span>
+    <span class="text-caption font-medium uppercase tracking-wide text-ink">Marriage Record</span>
+    <span class="text-caption uppercase tracking-wide text-mid-gray">· OCR</span>
   </div>
 
-  <form class="space-y-4" (ngSubmit)="submit()">
-    <div class="space-y-1">
-      <label for="email" class="text-caption font-medium text-ash">Email</label>
-      <input
-        id="email"
-        type="email"
-        autocomplete="username"
-        [(ngModel)]="email"
-        name="email"
-        required
-        class="w-full rounded-inputs border border-hairline bg-frost px-3 py-2 text-body-sm text-carbon focus:outline-none focus:ring-2 focus:ring-apple-blue"
-      />
+  <div class="flex flex-1 items-center justify-center py-12">
+    <div class="flex w-full max-w-[420px] flex-col gap-5 rounded-cards border border-hairline bg-paper p-5 shadow-card">
+      <div class="flex flex-col gap-2">
+        <span class="text-caption font-medium uppercase tracking-wide text-mid-gray">Sign in</span>
+        <h1 class="m-0 text-heading font-semibold text-ink">Marriage Record OCR</h1>
+        <p class="m-0 text-body text-mid-gray">Review and export marriage records.</p>
+      </div>
+
+      <form class="flex flex-col gap-3" (ngSubmit)="submit()">
+        <div class="flex flex-col gap-1">
+          <label for="email" class="text-body font-medium text-ink">Email</label>
+          <input
+            id="email"
+            type="email"
+            autocomplete="username"
+            placeholder="you@lauktech.xyz"
+            [(ngModel)]="email"
+            name="email"
+            required
+            class="h-9 w-full rounded-inputs bg-canvas px-3.5 text-body text-ink"
+          />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label for="password" class="text-body font-medium text-ink">Password</label>
+          <input
+            id="password"
+            type="password"
+            autocomplete="current-password"
+            placeholder="••••••••••"
+            [(ngModel)]="password"
+            name="password"
+            required
+            class="h-9 w-full rounded-inputs bg-canvas px-3.5 text-body text-ink"
+          />
+        </div>
+
+        <button
+          type="submit"
+          class="h-10 w-full rounded-buttons bg-ink text-body font-medium text-surface-alt hover:bg-ink-soft disabled:cursor-not-allowed disabled:opacity-40"
+          [disabled]="!email.trim() || !password || loggingIn()"
+        >
+          {{ loggingIn() ? 'Signing in…' : 'Sign in' }}
+        </button>
+      </form>
+
+      <div class="border-t border-hairline pt-4 text-center text-body-sm text-mid-gray">
+        Need access? Contact your administrator.
+      </div>
     </div>
-    <div class="space-y-1">
-      <label for="password" class="text-caption font-medium text-ash">Password</label>
-      <input
-        id="password"
-        type="password"
-        autocomplete="current-password"
-        [(ngModel)]="password"
-        name="password"
-        required
-        class="w-full rounded-inputs border border-hairline bg-frost px-3 py-2 text-body-sm text-carbon focus:outline-none focus:ring-2 focus:ring-apple-blue"
-      />
-    </div>
-    <button
-      type="submit"
-      class="w-full rounded-buttons bg-apple-blue px-[15px] py-[11px] text-body text-ice disabled:cursor-not-allowed disabled:opacity-40"
-      [disabled]="!email.trim() || !password || loggingIn()"
-    >
-      {{ loggingIn() ? 'Signing in…' : 'Sign in' }}
-    </button>
-  </form>
+  </div>
+
+  <div class="flex items-center justify-between font-geist-mono text-caption text-mid-gray">
+    <span>© 2026 Lauktech</span>
+    <span>v1.0</span>
+  </div>
 </div>

@@ -670,10 +670,12 @@ export class BatchDetailPage implements OnInit, OnDestroy {
         return 'bg-error-bg text-error';
       case 'PROCESSING':
       case 'FETCHING':
+        return 'bg-info-bg text-info';
       case 'REVIEW_REQUIRED':
+      case 'PENDING_REVIEW':
         return 'bg-warning-bg text-warning';
       default:
-        return 'bg-pebble text-carbon';
+        return 'bg-neutral-bg text-neutral';
     }
   }
 
@@ -701,5 +703,10 @@ export class BatchDetailPage implements OnInit, OnDestroy {
 
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /** e.g. "12 Feb 2026" -- matches the design's batch-header date badge. */
+  formatDate(iso: string): string {
+    return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 }

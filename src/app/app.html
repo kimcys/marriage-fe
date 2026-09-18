@@ -1,21 +1,71 @@
-<div class="min-h-screen bg-frost text-carbon">
-  <app-toast-container />
-  <header class="border-b border-hairline bg-white">
-    <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-      <div>
-        <a routerLink="/batches" class="text-subheading font-semibold text-carbon">Marriage Register OCR</a>
-        <p class="text-body-sm text-ash">Submit OneDrive links and review Vision OCR + Gemini extractions.</p>
-      </div>
-      @if (auth.isAuthenticated()) {
-        <div class="flex items-center gap-3 text-caption text-ash">
-          <span>{{ auth.currentUser()?.email }} · {{ auth.currentUser()?.role }}</span>
-          <button type="button" class="text-link-blue hover:underline" (click)="logout()">Log out</button>
-        </div>
-      }
-    </div>
-  </header>
+<app-toast-container />
 
-  <main class="mx-auto max-w-6xl px-6 py-8">
+@if (auth.isAuthenticated()) {
+  <div class="flex min-h-screen items-stretch bg-canvas">
+    <aside class="flex w-[232px] flex-none flex-col justify-between gap-6 border-r border-hairline bg-surface-alt p-5">
+      <div class="flex flex-col gap-6">
+        <div class="flex items-center gap-2">
+          <span class="block h-3.5 w-3.5 rounded-md bg-ink"></span>
+          <div class="flex flex-col">
+            <span class="text-body-sm font-semibold tracking-tight text-ink">Marriage Record</span>
+            <span class="text-caption uppercase tracking-wide text-mid-gray">OCR Scanned</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 rounded-inputs bg-canvas px-3 py-2 text-mid-gray">
+          <span class="flex-1 text-body">Search records</span>
+          <span class="font-geist-mono text-caption text-mid-gray">⌘K</span>
+        </div>
+
+        <nav class="flex flex-col gap-1">
+          <a
+            routerLink="/batches"
+            routerLinkActive="bg-canvas font-medium text-ink"
+            [routerLinkActiveOptions]="{ exact: false }"
+            class="flex items-center gap-2 rounded-buttons px-3 py-2 text-body text-mid-gray hover:bg-canvas-hover"
+          >
+            <span class="block h-[5px] w-[5px] rounded-full bg-current"></span>
+            Batches
+          </a>
+          <a
+            routerLink="/records"
+            routerLinkActive="bg-canvas font-medium text-ink"
+            [routerLinkActiveOptions]="{ exact: false }"
+            class="flex items-center gap-2 rounded-buttons px-3 py-2 text-body text-mid-gray hover:bg-canvas-hover"
+          >
+            <span class="block h-[5px] w-[5px] rounded-full bg-current"></span>
+            Records
+          </a>
+        </nav>
+      </div>
+
+      <div class="flex items-center gap-2 border-t border-hairline pt-4">
+        <span class="flex h-8 w-8 items-center justify-center rounded-buttons border border-hairline bg-canvas text-caption font-medium text-ink-soft">
+          {{ initials() }}
+        </span>
+        <div class="flex min-w-0 flex-1 flex-col">
+          <span class="truncate text-body-sm font-medium text-ink">{{ displayName() }}</span>
+          <span class="text-caption uppercase tracking-wide text-mid-gray">{{ auth.currentUser()?.role }}</span>
+        </div>
+        <button
+          type="button"
+          class="text-caption text-mid-gray hover:text-ink"
+          title="Log out"
+          (click)="logout()"
+        >
+          Log out
+        </button>
+      </div>
+    </aside>
+
+    <main class="min-w-0 flex-1 px-6 py-12 flex justify-center">
+      <div class="w-full max-w-[1280px]">
+        <router-outlet />
+      </div>
+    </main>
+  </div>
+} @else {
+  <div class="min-h-screen bg-canvas">
     <router-outlet />
-  </main>
-</div>
+  </div>
+}
