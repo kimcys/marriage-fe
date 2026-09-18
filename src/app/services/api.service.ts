@@ -24,7 +24,7 @@ export type DocumentType =
   | 'TYPED_RUJUK_LEGACY'
   | 'TYPED_RUJUK_MODERN';
 export type JobStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
-export type RecordStatus = 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED';
+export type RecordStatus = 'PENDING_REVIEW' | 'APPROVED';
 export type RecordType = 'NIKAH' | 'CERAI' | 'RUJUK';
 export type ExportStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
 export type ExportFormat = 'CSV' | 'XLSX';
@@ -403,15 +403,6 @@ export class ApiService {
   approveRecord(recordId: string, version: number, reason?: string): Promise<RecordResponse> {
     return firstValueFrom(
       this.http.post<RecordResponse>(`${API_BASE}/records/${recordId}/approve`, {
-        version,
-        reason: reason ?? null,
-      }),
-    );
-  }
-
-  rejectRecord(recordId: string, version: number, reason?: string): Promise<RecordResponse> {
-    return firstValueFrom(
-      this.http.post<RecordResponse>(`${API_BASE}/records/${recordId}/reject`, {
         version,
         reason: reason ?? null,
       }),

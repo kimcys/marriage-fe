@@ -194,11 +194,18 @@ export class RecordsTableComponent {
     }
   }
 
+  /** Mirrors the backend's own review decision (records/repositories.py::
+   * _initial_status_for) -- a record can need review either because a
+   * field is still genuinely missing OR because the OCR extraction itself
+   * flagged low confidence, so the visible label has to read record.status
+   * directly rather than recompute from missing_fields alone (a
+   * low-confidence record with every field auto-filled would otherwise show
+   * as "Complete" here while the backend still has it as PENDING_REVIEW). */
   recordStatusLabel(record: EditableRecord): string {
-    return record.missing_fields.length > 0 ? 'Needs review' : 'Complete';
+    return record.status === 'PENDING_REVIEW' ? 'Needs review' : 'Complete';
   }
 
   recordStatusClasses(record: EditableRecord): string {
-    return record.missing_fields.length > 0 ? 'bg-warning-bg text-warning' : 'bg-success-bg text-success';
+    return record.status === 'PENDING_REVIEW' ? 'bg-warning-bg text-warning' : 'bg-success-bg text-success';
   }
 }

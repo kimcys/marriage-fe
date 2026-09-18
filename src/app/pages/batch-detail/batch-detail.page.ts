@@ -666,7 +666,6 @@ export class BatchDetailPage implements OnInit, OnDestroy {
       case 'APPROVED':
         return 'bg-success-bg text-success';
       case 'FAILED':
-      case 'REJECTED':
         return 'bg-error-bg text-error';
       case 'PROCESSING':
       case 'FETCHING':
