@@ -150,6 +150,10 @@ export interface ExportResponse {
 export interface SkippedFile {
   filename: string;
   status: string;
+  // True when the file's bytes are still available server-side, so it can
+  // be manually classified via ApiService.classifySkippedFile -- false for
+  // an entry recorded before this existed, or if preserving it failed.
+  classifiable: boolean;
 }
 
 export interface OneDriveSubmissionResponse {
@@ -284,6 +288,25 @@ export class ApiService {
   deleteOneDriveSubmission(batchId: string, submissionId: string): Promise<void> {
     return firstValueFrom(
       this.http.delete<void>(`${API_BASE}/batches/${batchId}/onedrive-links/${submissionId}`),
+    );
+  }
+
+  /** A human's override for a file the auto-classifier couldn't route
+   * (NEEDS_MANUAL_CLASSIFICATION and similar skip reasons) -- ingests it
+   * into the normal Document/Job pipeline with the document type supplied
+   * here instead of an auto-classified guess. Only possible while the
+   * skipped file's `classifiable` flag is true. */
+  classifySkippedFile(
+    batchId: string,
+    submissionId: string,
+    filename: string,
+    documentType: DocumentType,
+  ): Promise<OneDriveSubmissionResponse> {
+    return firstValueFrom(
+      this.http.post<OneDriveSubmissionResponse>(
+        `${API_BASE}/batches/${batchId}/onedrive-links/${submissionId}/skipped-files/classify`,
+        { filename, document_type: documentType },
+      ),
     );
   }
 

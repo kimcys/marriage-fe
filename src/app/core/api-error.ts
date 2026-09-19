@@ -22,8 +22,15 @@ export class ApiClientError extends Error {
     return this.status === 0;
   }
 
+  /** Specifically a stale optimistic-concurrency version conflict (a
+   * record/batch edited elsewhere since this client last read it) -- 409
+   * alone isn't enough to mean that: SUBMISSION_NOT_FAILED,
+   * JOB_NOT_COMPLETED, JOB_NOT_RETRYABLE, and SKIPPED_FILE_UNAVAILABLE are
+   * also 409s, each with their own already-correct backend message that
+   * must reach the user as-is, not get overwritten by the generic
+   * "reload and try again" text below. */
   get isConflict(): boolean {
-    return this.status === 409;
+    return this.status === 409 && this.code === 'RECORD_CONFLICT';
   }
 
   get isNotFound(): boolean {

@@ -9,6 +9,8 @@ import { saveBlob, withoutExtension } from '../../core/file-download';
 import {
   ApiService,
   BatchResponse,
+  DOCUMENT_TYPE_LABELS,
+  DocumentType,
   ExportFormat,
   ExportResponse,
   JobResponse,
@@ -56,6 +58,19 @@ export class BatchDetailPage implements OnInit, OnDestroy {
   protected readonly oneDriveSubmissions = signal<OneDriveSubmissionResponse[]>([]);
   protected readonly submittingLink = signal(false);
   protected newOneDriveUrl = '';
+
+  // ---- Manual classification for a skipped file (skipped.classifiable) --
+  // one document-type choice per (submission, filename) pair, plain object
+  // rather than a signal since it's only ever mutated through the setter
+  // below and read back in the template, same pattern as EditableRecord's
+  // own editingField/editingValue. ----
+  protected readonly classifyDocumentType: Record<string, DocumentType | undefined> = {};
+  protected readonly classifyingFiles = signal<Set<string>>(new Set());
+  protected readonly documentTypeOptions = (Object.keys(DOCUMENT_TYPE_LABELS) as DocumentType[]).filter(
+    // TYPED_BORANG_4B is kept in the type for backward compatibility with
+    // already-stored rows only -- never offered as a fresh choice.
+    (type) => type !== 'TYPED_BORANG_4B',
+  );
 
   // ---- Jobs: virtualized + incrementally fetched, optionally status-filtered ----
   protected readonly jobs = signal<JobResponse[]>([]);
@@ -270,6 +285,55 @@ export class BatchDetailPage implements OnInit, OnDestroy {
       this.toast.success('Link deleted.');
     } catch (error) {
       this.handleError(error);
+    }
+  }
+
+  documentTypeLabel(type: DocumentType): string {
+    return DOCUMENT_TYPE_LABELS[type];
+  }
+
+  private classifyKey(submissionId: string, filename: string): string {
+    return `${submissionId}:${filename}`;
+  }
+
+  getClassifyDocumentType(submissionId: string, filename: string): DocumentType | undefined {
+    return this.classifyDocumentType[this.classifyKey(submissionId, filename)];
+  }
+
+  setClassifyDocumentType(submissionId: string, filename: string, value: DocumentType): void {
+    this.classifyDocumentType[this.classifyKey(submissionId, filename)] = value;
+  }
+
+  isClassifying(submissionId: string, filename: string): boolean {
+    return this.classifyingFiles().has(this.classifyKey(submissionId, filename));
+  }
+
+  /** A human's override for a file the auto-classifier couldn't route --
+   * only reachable while skipped.classifiable is true (its bytes are still
+   * on disk server-side). Reuses the exact same ingest path an
+   * auto-classified file already goes through, so a fresh job appears in
+   * the Jobs list below once this succeeds. */
+  async classifySkippedFile(submission: OneDriveSubmissionResponse, filename: string): Promise<void> {
+    const documentType = this.getClassifyDocumentType(submission.id, filename);
+    if (!documentType || this.isClassifying(submission.id, filename)) {
+      return;
+    }
+    const key = this.classifyKey(submission.id, filename);
+    this.classifyingFiles.update((set) => new Set(set).add(key));
+    try {
+      await this.api.classifySkippedFile(this.batchId, submission.id, filename, documentType);
+      await this.loadOneDriveSubmissions();
+      await this.loadJobs();
+      this.startPolling();
+      this.toast.success(`${filename} classified — processing in the background.`);
+    } catch (error) {
+      this.handleError(error);
+    } finally {
+      this.classifyingFiles.update((set) => {
+        const next = new Set(set);
+        next.delete(key);
+        return next;
+      });
     }
   }
 

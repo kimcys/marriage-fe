@@ -132,14 +132,40 @@
               <p class="mt-1 text-caption text-error">{{ submission.error.message }}</p>
             }
             @if (submission.skipped_files && submission.skipped_files.length > 0) {
-              <div class="mt-2 flex flex-wrap gap-1.5">
+              <div class="mt-2 flex flex-col gap-1.5">
                 @for (skipped of submission.skipped_files; track skipped.filename) {
-                  <span
-                    class="rounded-badges bg-warning-bg px-2 py-0.5 text-caption text-warning"
-                    [title]="skipped.filename + ': ' + skipped.status"
-                  >
-                    {{ skipped.filename }} — {{ skipped.status }}
-                  </span>
+                  @if (skipped.classifiable) {
+                    <div class="flex flex-wrap items-center gap-2 rounded-nested border border-hairline bg-surface-alt px-3 py-2">
+                      <span class="font-geist-mono text-caption text-ink">{{ skipped.filename }}</span>
+                      <span class="whitespace-nowrap rounded-badges bg-warning-bg px-2 py-0.5 text-caption text-warning">{{ skipped.status }}</span>
+                      <select
+                        [ngModel]="getClassifyDocumentType(submission.id, skipped.filename)"
+                        (ngModelChange)="setClassifyDocumentType(submission.id, skipped.filename, $event)"
+                        [ngModelOptions]="{standalone: true}"
+                        class="h-8 flex-1 rounded-buttons bg-canvas px-3 text-body-sm font-medium text-ink hover:bg-canvas-hover"
+                      >
+                        <option [ngValue]="undefined" disabled>Choose the document type…</option>
+                        @for (type of documentTypeOptions; track type) {
+                          <option [value]="type">{{ documentTypeLabel(type) }}</option>
+                        }
+                      </select>
+                      <button
+                        type="button"
+                        class="h-8 flex-none rounded-buttons bg-ink px-3 text-body-sm font-medium text-surface-alt hover:bg-ink-soft disabled:cursor-not-allowed disabled:opacity-40"
+                        [disabled]="!getClassifyDocumentType(submission.id, skipped.filename) || isClassifying(submission.id, skipped.filename)"
+                        (click)="classifySkippedFile(submission, skipped.filename)"
+                      >
+                        {{ isClassifying(submission.id, skipped.filename) ? 'Classifying…' : 'Classify' }}
+                      </button>
+                    </div>
+                  } @else {
+                    <span
+                      class="w-fit rounded-badges bg-warning-bg px-2 py-0.5 text-caption text-warning"
+                      [title]="skipped.filename + ': ' + skipped.status"
+                    >
+                      {{ skipped.filename }} — {{ skipped.status }}
+                    </span>
+                  }
                 }
               </div>
             }
