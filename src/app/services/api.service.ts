@@ -66,6 +66,8 @@ export interface BatchResponse {
   id: string;
   name: string;
   description: string | null;
+  daerah: string | null;
+  negeri: string | null;
   status: BatchStatus;
   created_by: string | null;
   created_at: string;
@@ -112,6 +114,11 @@ export interface RecordResponse {
   validation_issues: string[];
   missing_fields: string[];
   original_filename: string | null;
+  // Always the record's batch's *current* daerah/negeri (a live join on
+  // the backend, not a value copied onto the record at OCR-import time) --
+  // null wherever the batch has neither set.
+  batch_daerah: string | null;
+  batch_negeri: string | null;
   reviewed_by: string | null;
   reviewed_at: string | null;
   version: number;
@@ -190,9 +197,14 @@ export class ApiService {
 
   // ---- Batches ----
 
-  createBatch(name: string, description?: string): Promise<BatchResponse> {
+  createBatch(name: string, description?: string, daerah?: string, negeri?: string): Promise<BatchResponse> {
     return firstValueFrom(
-      this.http.post<BatchResponse>(`${API_BASE}/batches`, { name, description: description ?? null }),
+      this.http.post<BatchResponse>(`${API_BASE}/batches`, {
+        name,
+        description: description ?? null,
+        daerah: daerah ?? null,
+        negeri: negeri ?? null,
+      }),
     );
   }
 
@@ -214,8 +226,18 @@ export class ApiService {
     return firstValueFrom(this.http.get<BatchStatsResponse>(`${API_BASE}/batches/stats`));
   }
 
-  renameBatch(batchId: string, name: string): Promise<BatchResponse> {
-    return firstValueFrom(this.http.patch<BatchResponse>(`${API_BASE}/batches/${batchId}`, { name }));
+  /** A full replace of name/daerah/negeri together, not a sparse merge --
+   * matches the backend's PATCH semantics (see batches/response_models.py::
+   * BatchRenameRequest). Always send the batch's current values for any
+   * field the caller isn't actually changing. */
+  updateBatch(batchId: string, name: string, daerah?: string, negeri?: string): Promise<BatchResponse> {
+    return firstValueFrom(
+      this.http.patch<BatchResponse>(`${API_BASE}/batches/${batchId}`, {
+        name,
+        daerah: daerah ?? null,
+        negeri: negeri ?? null,
+      }),
+    );
   }
 
   /** Deletes the batch and everything scoped to it -- documents, jobs,

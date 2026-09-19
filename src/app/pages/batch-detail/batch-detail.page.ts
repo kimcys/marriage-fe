@@ -6,6 +6,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { EditableRecord, RecordsTableComponent } from '../../components/records-table/records-table.component';
 import { ApiClientError } from '../../core/api-error';
 import { saveBlob, withoutExtension } from '../../core/file-download';
+import { KNOWN_DAERAH, negeriForDaerah } from '../../core/geography';
 import {
   ApiService,
   BatchResponse,
@@ -47,9 +48,22 @@ export class BatchDetailPage implements OnInit, OnDestroy {
   protected readonly jobsRowHeight = JOBS_ROW_HEIGHT;
 
   protected readonly batch = signal<BatchResponse | null>(null);
-  protected readonly editingName = signal(false);
-  protected readonly savingName = signal(false);
-  protected editingNameValue = '';
+  protected readonly editingBatch = signal(false);
+  protected readonly savingBatch = signal(false);
+  protected editingBatchName = '';
+  protected editingBatchDaerah = '';
+  protected editingBatchNegeri = '';
+  protected readonly knownDaerah = KNOWN_DAERAH;
+
+  /** See batch-list.page.ts's identical method -- only overwrites negeri
+   * when the typed daerah is one this app knows about (Selangor's 9,
+   * today); otherwise the field is left exactly as the user typed it. */
+  onEditingBatchDaerahChanged(): void {
+    const negeri = negeriForDaerah(this.editingBatchDaerah);
+    if (negeri) {
+      this.editingBatchNegeri = negeri;
+    }
+  }
 
   // ---- OneDrive links: the only ingestion path. A link is fetched and every
   // file it resolves to auto-classified in the background -- this list is
@@ -151,38 +165,46 @@ export class BatchDetailPage implements OnInit, OnDestroy {
     }
   }
 
-  startEditName(): void {
+  startEditBatch(): void {
     const current = this.batch();
     if (!current) {
       return;
     }
-    this.editingNameValue = current.name;
-    this.editingName.set(true);
+    this.editingBatchName = current.name;
+    this.editingBatchDaerah = current.daerah ?? '';
+    this.editingBatchNegeri = current.negeri ?? '';
+    this.editingBatch.set(true);
   }
 
-  cancelEditName(): void {
-    this.editingName.set(false);
+  cancelEditBatch(): void {
+    this.editingBatch.set(false);
   }
 
-  async saveName(): Promise<void> {
+  async saveBatch(): Promise<void> {
     const current = this.batch();
-    const name = this.editingNameValue.trim();
+    const name = this.editingBatchName.trim();
     if (!current) {
       return;
     }
-    if (!name || name === current.name) {
-      this.editingName.set(false);
+    if (!name) {
+      this.editingBatch.set(false);
       return;
     }
-    this.savingName.set(true);
+    const daerah = this.editingBatchDaerah.trim();
+    const negeri = this.editingBatchNegeri.trim();
+    if (name === current.name && daerah === (current.daerah ?? '') && negeri === (current.negeri ?? '')) {
+      this.editingBatch.set(false);
+      return;
+    }
+    this.savingBatch.set(true);
     try {
-      this.batch.set(await this.api.renameBatch(this.batchId, name));
-      this.editingName.set(false);
-      this.toast.success('Batch renamed.');
+      this.batch.set(await this.api.updateBatch(this.batchId, name, daerah || undefined, negeri || undefined));
+      this.editingBatch.set(false);
+      this.toast.success('Batch updated.');
     } catch (error) {
       this.handleError(error);
     } finally {
-      this.savingName.set(false);
+      this.savingBatch.set(false);
     }
   }
 
@@ -771,5 +793,9 @@ export class BatchDetailPage implements OnInit, OnDestroy {
   /** e.g. "12 Feb 2026" -- matches the design's batch-header date badge. */
   formatDate(iso: string): string {
     return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  batchLocation(batch: BatchResponse): string {
+    return [batch.daerah, batch.negeri].filter((value): value is string => !!value).join(', ');
   }
 }

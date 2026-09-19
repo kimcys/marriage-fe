@@ -53,6 +53,31 @@
           class="h-9 w-full rounded-inputs bg-canvas px-3.5 text-body text-ink"
         />
       </div>
+      <div class="flex min-w-0 flex-1 flex-col gap-1 basis-[180px]">
+        <label class="text-body font-medium text-ink">Daerah <span class="font-normal text-mid-gray">(optional)</span></label>
+        <input
+          type="text"
+          list="new-batch-daerah-options"
+          [(ngModel)]="newBatchDaerah"
+          (ngModelChange)="onNewBatchDaerahChanged()"
+          placeholder="e.g. Klang"
+          class="h-9 w-full rounded-inputs bg-canvas px-3.5 text-body text-ink"
+        />
+        <datalist id="new-batch-daerah-options">
+          @for (option of knownDaerah; track option) {
+            <option [value]="option"></option>
+          }
+        </datalist>
+      </div>
+      <div class="flex min-w-0 flex-1 flex-col gap-1 basis-[180px]">
+        <label class="text-body font-medium text-ink">Negeri <span class="font-normal text-mid-gray">(optional)</span></label>
+        <input
+          type="text"
+          [(ngModel)]="newBatchNegeri"
+          placeholder="e.g. Selangor"
+          class="h-9 w-full rounded-inputs bg-canvas px-3.5 text-body text-ink"
+        />
+      </div>
       <button
         type="button"
         class="h-9 flex-none rounded-buttons bg-ink px-4 text-body font-medium text-surface-alt hover:bg-ink-soft disabled:cursor-not-allowed disabled:opacity-40"
@@ -89,6 +114,9 @@
                 <span class="truncate text-body font-medium text-ink">{{ batch.name }}</span>
                 @if (batch.description) {
                   <span class="truncate text-caption text-mid-gray">{{ batch.description }}</span>
+                }
+                @if (batch.daerah || batch.negeri) {
+                  <span class="truncate text-caption text-mid-gray">{{ batchLocation(batch) }}</span>
                 }
               </a>
               <div>

@@ -6,6 +6,8 @@
       <tr class="border-b border-t border-hairline bg-surface-alt text-caption font-medium uppercase tracking-wide text-mid-gray">
         <th class="whitespace-nowrap px-5 py-2 text-left">Status</th>
         <th class="whitespace-nowrap px-5 py-2 text-left">File</th>
+        <th class="whitespace-nowrap px-5 py-2 text-left">Daerah</th>
+        <th class="whitespace-nowrap px-5 py-2 text-left">Negeri</th>
         @for (column of recordColumns(); track column) {
           <th class="whitespace-nowrap px-5 py-2 text-left">{{ column }}</th>
         }
@@ -63,6 +65,12 @@
               <span class="text-caption text-mid-gray">—</span>
             }
           </td>
+          <!-- Always follows the record's batch -- not independently
+               editable, since it's derived from the batch, not OCR'd per
+               record (see api.service.ts's RecordResponse.batch_daerah/
+               batch_negeri docs). -->
+          <td class="whitespace-nowrap px-5 py-3 align-top text-body text-ink">{{ record.batch_daerah ?? '—' }}</td>
+          <td class="whitespace-nowrap px-5 py-3 align-top text-body text-ink">{{ record.batch_negeri ?? '—' }}</td>
           @for (column of recordColumns(); track column) {
             <td class="min-w-[9rem] px-5 py-3 align-top">
               @if (isEditingCell(record, column)) {

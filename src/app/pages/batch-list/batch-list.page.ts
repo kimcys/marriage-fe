@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
 import { ApiClientError } from '../../core/api-error';
+import { KNOWN_DAERAH, negeriForDaerah } from '../../core/geography';
 import { ApiService, BatchResponse, BatchStatsResponse } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
@@ -23,8 +24,22 @@ export class BatchListPage implements OnInit {
   protected readonly creating = signal(false);
   protected newBatchName = '';
   protected newBatchDescription = '';
+  protected newBatchDaerah = '';
+  protected newBatchNegeri = '';
+  protected readonly knownDaerah = KNOWN_DAERAH;
 
   protected readonly stats = signal<BatchStatsResponse | null>(null);
+
+  /** Only overwrites negeri when the typed daerah is one this app knows
+   * about (see core/geography.ts) -- a daerah outside Selangor is still
+   * free to type, it just doesn't auto-fill anything, and whatever the
+   * user already typed into negeri is left alone. */
+  onNewBatchDaerahChanged(): void {
+    const negeri = negeriForDaerah(this.newBatchDaerah);
+    if (negeri) {
+      this.newBatchNegeri = negeri;
+    }
+  }
 
   constructor(
     private readonly api: ApiService,
@@ -90,9 +105,16 @@ export class BatchListPage implements OnInit {
     }
     this.creating.set(true);
     try {
-      await this.api.createBatch(this.newBatchName.trim(), this.newBatchDescription.trim() || undefined);
+      await this.api.createBatch(
+        this.newBatchName.trim(),
+        this.newBatchDescription.trim() || undefined,
+        this.newBatchDaerah.trim() || undefined,
+        this.newBatchNegeri.trim() || undefined,
+      );
       this.newBatchName = '';
       this.newBatchDescription = '';
+      this.newBatchDaerah = '';
+      this.newBatchNegeri = '';
       await this.load(0);
       await this.loadStats();
       this.toast.success('Batch created.');
@@ -115,6 +137,10 @@ export class BatchListPage implements OnInit {
     } catch (error) {
       this.handleError(error);
     }
+  }
+
+  batchLocation(batch: BatchResponse): string {
+    return [batch.daerah, batch.negeri].filter((value): value is string => !!value).join(', ');
   }
 
   /** Zero-pads single-digit stat values to match the design's Geist Mono
