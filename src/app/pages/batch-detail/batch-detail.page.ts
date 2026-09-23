@@ -17,6 +17,7 @@ import {
   JobResponse,
   JobStatus,
   OneDriveSubmissionResponse,
+  SkippedFile,
   OneDriveSubmissionStatus,
   RecordResponse,
   RecordStatus,
@@ -38,6 +39,22 @@ const MAX_API_LIST_LIMIT = 100;
 const RECORDS_QUERY_DEBOUNCE_MS = 400;
 const NON_TERMINAL_JOB_STATUSES: JobStatus[] = ['PENDING', 'PROCESSING'];
 const NON_TERMINAL_SUBMISSION_STATUSES: OneDriveSubmissionStatus[] = ['PENDING', 'FETCHING'];
+
+/** Submissions still fetching, plus skipped files still being re-downloaded
+ * on their own -- either one means the page should keep polling. */
+function busySubmissionWork(submissions: OneDriveSubmissionResponse[]): number {
+  return submissions.reduce(
+    (count, s) =>
+      count +
+      (NON_TERMINAL_SUBMISSION_STATUSES.includes(s.status) ? 1 : 0) +
+      (s.skipped_files ?? []).filter((f) => isRefetching(f)).length,
+    0,
+  );
+}
+
+function isRefetching(file: SkippedFile): boolean {
+  return file.refetch_status === 'QUEUED' || file.refetch_status === 'IN_PROGRESS';
+}
 
 @Component({
   selector: 'app-batch-detail',
@@ -326,6 +343,10 @@ export class BatchDetailPage implements OnInit, OnDestroy {
     this.classifyDocumentType[this.classifyKey(submissionId, filename)] = value;
   }
 
+  isRefetching(file: SkippedFile): boolean {
+    return isRefetching(file);
+  }
+
   isClassifying(submissionId: string, filename: string): boolean {
     return this.classifyingFiles().has(this.classifyKey(submissionId, filename));
   }
@@ -343,11 +364,16 @@ export class BatchDetailPage implements OnInit, OnDestroy {
     const key = this.classifyKey(submission.id, filename);
     this.classifyingFiles.update((set) => new Set(set).add(key));
     try {
-      await this.api.classifySkippedFile(this.batchId, submission.id, filename, documentType);
+      const updated = await this.api.classifySkippedFile(this.batchId, submission.id, filename, documentType);
+      const refetching = updated.skipped_files?.some((f) => f.filename === filename && isRefetching(f));
       await this.loadOneDriveSubmissions();
       await this.loadJobs();
       this.startPolling();
-      this.toast.success(`${filename} classified — processing in the background.`);
+      this.toast.success(
+        refetching
+          ? `${filename} is being re-downloaded from OneDrive — it will be processed once it arrives.`
+          : `${filename} classified — processing in the background.`,
+      );
     } catch (error) {
       this.handleError(error);
     } finally {
@@ -363,19 +389,15 @@ export class BatchDetailPage implements OnInit, OnDestroy {
    * still PENDING/FETCHING -- a settled batch stops touching this endpoint
    * on every poll tick, same principle as the jobs list below. */
   private async refreshSubmissionsIfPending(): Promise<void> {
-    const pendingBefore = this.oneDriveSubmissions().filter((s) =>
-      NON_TERMINAL_SUBMISSION_STATUSES.includes(s.status),
-    ).length;
+    const pendingBefore = busySubmissionWork(this.oneDriveSubmissions());
     if (pendingBefore === 0) {
       return;
     }
     await this.loadOneDriveSubmissions();
-    const pendingAfter = this.oneDriveSubmissions().filter((s) =>
-      NON_TERMINAL_SUBMISSION_STATUSES.includes(s.status),
-    ).length;
+    const pendingAfter = busySubmissionWork(this.oneDriveSubmissions());
     if (pendingAfter < pendingBefore) {
-      // At least one submission just finished fetching+classifying -- any
-      // routable files it found became new jobs, not yet in the loaded list.
+      // At least one submission (or re-downloaded file) just finished --
+      // any files it ingested became new jobs, not yet in the loaded list.
       await this.loadJobs();
     }
   }
@@ -536,9 +558,7 @@ export class BatchDetailPage implements OnInit, OnDestroy {
     const jobsSettled =
       this.jobs().length >= this.jobsTotal() &&
       !this.jobs().some((job) => NON_TERMINAL_JOB_STATUSES.includes(job.status));
-    const submissionsSettled = !this.oneDriveSubmissions().some((s) =>
-      NON_TERMINAL_SUBMISSION_STATUSES.includes(s.status),
-    );
+    const submissionsSettled = busySubmissionWork(this.oneDriveSubmissions()) === 0;
     if (jobsSettled && submissionsSettled) {
       this.stopPolling();
     }

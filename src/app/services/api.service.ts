@@ -55,6 +55,11 @@ export interface TokenResponse {
   role: Role;
 }
 
+export interface RecordLocation {
+  daerah: string | null;
+  negeri: string | null;
+}
+
 export interface Paginated<T> {
   items: T[];
   limit: number;
@@ -157,10 +162,15 @@ export interface ExportResponse {
 export interface SkippedFile {
   filename: string;
   status: string;
-  // True when the file's bytes are still available server-side, so it can
-  // be manually classified via ApiService.classifySkippedFile -- false for
-  // an entry recorded before this existed, or if preserving it failed.
+  // Whether "Classify" can be offered right now -- false only while this
+  // file is already being re-downloaded (see refetch_status).
   classifiable: boolean;
+  // When the server no longer has this file's bytes, Classify re-downloads
+  // just this one file from the OneDrive link in the background: QUEUED /
+  // IN_PROGRESS while that runs, FAILED (with refetch_error) if it didn't
+  // work. Absent otherwise.
+  refetch_status?: 'QUEUED' | 'IN_PROGRESS' | 'FAILED' | null;
+  refetch_error?: string | null;
 }
 
 export interface OneDriveSubmissionResponse {
@@ -388,6 +398,8 @@ export class ApiService {
       q?: string;
       sourceUrl?: string;
       recordType?: RecordType;
+      daerah?: string;
+      negeri?: string;
       limit?: number;
       offset?: number;
     } = {},
@@ -400,11 +412,22 @@ export class ApiService {
           q: filters.q,
           source_url: filters.sourceUrl,
           record_type: filters.recordType,
+          daerah: filters.daerah,
+          negeri: filters.negeri,
           limit: filters.limit ?? 20,
           offset: filters.offset ?? 0,
         }),
       }),
     );
+  }
+
+  /** Every (daerah, negeri) pair any batch uses -- options for the records
+   * page's location filters. */
+  async listRecordLocations(): Promise<RecordLocation[]> {
+    const response = await firstValueFrom(
+      this.http.get<{ items: RecordLocation[] }>(`${API_BASE}/records/locations`),
+    );
+    return response.items;
   }
 
   listJobRecords(

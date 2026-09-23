@@ -159,7 +159,15 @@
             @if (submission.skipped_files && submission.skipped_files.length > 0) {
               <div class="mt-2 flex flex-col gap-1.5">
                 @for (skipped of submission.skipped_files; track skipped.filename) {
-                  @if (skipped.classifiable) {
+                  @if (isRefetching(skipped)) {
+                    <div class="flex flex-wrap items-center gap-2 rounded-nested border border-hairline bg-surface-alt px-3 py-2">
+                      <span class="font-geist-mono text-caption text-ink">{{ skipped.filename }}</span>
+                      <span class="flex items-center gap-1.5 text-caption text-mid-gray">
+                        <span class="block h-2 w-2 animate-pulse rounded-full bg-current"></span>
+                        Re-downloading this file from OneDrive…
+                      </span>
+                    </div>
+                  } @else if (skipped.classifiable) {
                     <div class="flex flex-wrap items-center gap-2 rounded-nested border border-hairline bg-surface-alt px-3 py-2">
                       <span class="font-geist-mono text-caption text-ink">{{ skipped.filename }}</span>
                       <span class="whitespace-nowrap rounded-badges bg-warning-bg px-2 py-0.5 text-caption text-warning">{{ skipped.status }}</span>
@@ -182,6 +190,9 @@
                       >
                         {{ isClassifying(submission.id, skipped.filename) ? 'Classifying…' : 'Classify' }}
                       </button>
+                      @if (skipped.refetch_status === 'FAILED' && skipped.refetch_error) {
+                        <p class="m-0 basis-full text-caption text-error">Re-download failed: {{ skipped.refetch_error }}</p>
+                      }
                     </div>
                   } @else {
                     <span

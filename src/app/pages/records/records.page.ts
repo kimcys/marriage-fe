@@ -1,9 +1,9 @@
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { EditableRecord, RecordsTableComponent } from '../../components/records-table/records-table.component';
 import { ApiClientError } from '../../core/api-error';
-import { ApiService, RecordResponse, RecordStatus, RecordType } from '../../services/api.service';
+import { ApiService, RecordLocation, RecordResponse, RecordStatus, RecordType } from '../../services/api.service';
 import { ToastService } from '../../services/toast.service';
 
 const RECORDS_PAGE_SIZE = 20;
@@ -30,6 +30,25 @@ export class RecordsPage implements OnInit, OnDestroy {
   protected typeFilter: StatusFilter<RecordType> = 'ALL';
   protected statusFilter: StatusFilter<RecordStatus> = 'ALL';
   protected query = '';
+  protected negeriFilter = '';
+  protected daerahFilter = '';
+
+  /** Batch daerah/negeri are free text, so options come from what batches
+   * actually use (GET /records/locations) rather than a fixed list. */
+  private readonly locations = signal<RecordLocation[]>([]);
+  private readonly selectedNegeri = signal('');
+  protected readonly negeriOptions = computed(() =>
+    uniqueSorted(this.locations().map((location) => location.negeri)),
+  );
+  /** Narrowed to the picked negeri's daerah, once one is picked. */
+  protected readonly daerahOptions = computed(() => {
+    const negeri = this.selectedNegeri().toLowerCase();
+    return uniqueSorted(
+      this.locations()
+        .filter((location) => !negeri || location.negeri?.trim().toLowerCase() === negeri)
+        .map((location) => location.daerah),
+    );
+  });
 
   private queryDebounceHandle: ReturnType<typeof setTimeout> | null = null;
 
@@ -40,6 +59,7 @@ export class RecordsPage implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     void this.load(0);
+    void this.loadLocations();
   }
 
   ngOnDestroy(): void {
@@ -49,6 +69,15 @@ export class RecordsPage implements OnInit, OnDestroy {
   }
 
   async onFilterChanged(): Promise<void> {
+    await this.load(0);
+  }
+
+  /** A daerah from another negeri can't match anymore, so drop it. */
+  async onNegeriChanged(): Promise<void> {
+    this.selectedNegeri.set(this.negeriFilter);
+    if (this.daerahFilter && !this.daerahOptions().includes(this.daerahFilter)) {
+      this.daerahFilter = '';
+    }
     await this.load(0);
   }
 
@@ -98,12 +127,23 @@ export class RecordsPage implements OnInit, OnDestroy {
     this.total.update((total) => Math.max(0, total - 1));
   }
 
+  private async loadLocations(): Promise<void> {
+    try {
+      this.locations.set(await this.api.listRecordLocations());
+    } catch (error) {
+      // Filters just stay empty -- the records list itself still works.
+      console.error(error);
+    }
+  }
+
   private async load(offset: number): Promise<void> {
     this.loading.set(true);
     try {
       const page = await this.api.listRecords({
         status: this.statusFilter === 'ALL' ? undefined : this.statusFilter,
         recordType: this.typeFilter === 'ALL' ? undefined : this.typeFilter,
+        negeri: this.negeriFilter || undefined,
+        daerah: this.daerahFilter || undefined,
         q: this.query.trim() || undefined,
         limit: this.pageSize,
         offset,
@@ -118,4 +158,15 @@ export class RecordsPage implements OnInit, OnDestroy {
       this.loading.set(false);
     }
   }
+}
+
+function uniqueSorted(values: (string | null)[]): string[] {
+  const seen = new Map<string, string>();
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (trimmed && !seen.has(trimmed.toLowerCase())) {
+      seen.set(trimmed.toLowerCase(), trimmed);
+    }
+  }
+  return [...seen.values()].sort((a, b) => a.localeCompare(b));
 }

@@ -1,7 +1,7 @@
 <div class="flex flex-col gap-6">
   <div class="flex flex-col gap-1">
     <h1 class="m-0 text-heading font-semibold text-ink">All records</h1>
-    <p class="m-0 text-body text-mid-gray">Every record extracted so far, across every batch. Search by Bil, IC or name.</p>
+    <p class="m-0 text-body text-mid-gray">Every record extracted so far, across every batch. Search by Bil, IC or name, or filter by negeri and daerah.</p>
   </div>
 
   <div class="overflow-hidden rounded-cards border border-hairline bg-paper shadow-card">
@@ -35,6 +35,26 @@
         <option value="ALL">All statuses</option>
         <option value="PENDING_REVIEW">Needs review</option>
         <option value="APPROVED">Complete</option>
+      </select>
+      <select
+        [(ngModel)]="negeriFilter"
+        (ngModelChange)="onNegeriChanged()"
+        class="h-9 rounded-buttons bg-canvas px-3.5 text-body font-medium text-ink hover:bg-canvas-hover"
+      >
+        <option value="">All negeri</option>
+        @for (option of negeriOptions(); track option) {
+          <option [value]="option">{{ option }}</option>
+        }
+      </select>
+      <select
+        [(ngModel)]="daerahFilter"
+        (ngModelChange)="onFilterChanged()"
+        class="h-9 rounded-buttons bg-canvas px-3.5 text-body font-medium text-ink hover:bg-canvas-hover"
+      >
+        <option value="">All daerah</option>
+        @for (option of daerahOptions(); track option) {
+          <option [value]="option">{{ option }}</option>
+        }
       </select>
     </div>
 
