@@ -60,6 +60,33 @@ export interface RecordLocation {
   negeri: string | null;
 }
 
+/** One entry of the admin-only audit trail (GET /activity). */
+export interface ActivityEntry {
+  id: string;
+  created_at: string;
+  user_id: string | null;
+  user_code: string | null;
+  user_name: string | null;
+  action: string;
+  batch_id: string | null;
+  target_type: string | null;
+  target_id: string | null;
+  target_label: string | null;
+  summary: string;
+  details: Record<string, unknown> | null;
+}
+
+/** An account as the admin-only Users page sees it. */
+export interface UserSummary {
+  id: string;
+  code: string;
+  name: string | null;
+  email: string;
+  role: Role;
+  is_active: boolean;
+  created_at: string;
+}
+
 export interface Paginated<T> {
   items: T[];
   limit: number;
@@ -74,7 +101,11 @@ export interface BatchResponse {
   daerah: string | null;
   negeri: string | null;
   status: BatchStatus;
+  // The user who added the batch: their id, display code (e.g. MOCR001) and
+  // name -- all null if never recorded or that user was deleted.
   created_by: string | null;
+  created_by_code: string | null;
+  created_by_name: string | null;
   created_at: string;
   updated_at: string;
   started_at: string | null;
@@ -419,6 +450,41 @@ export class ApiService {
         }),
       }),
     );
+  }
+
+  /** Admin-only audit trail, newest first. */
+  listActivity(
+    filters: { userId?: string; action?: string; since?: string; until?: string; limit?: number; offset?: number } = {},
+  ): Promise<Paginated<ActivityEntry>> {
+    return firstValueFrom(
+      this.http.get<Paginated<ActivityEntry>>(`${API_BASE}/activity`, {
+        params: toHttpParams({
+          user_id: filters.userId,
+          action: filters.action,
+          since: filters.since,
+          until: filters.until,
+          limit: filters.limit ?? 50,
+          offset: filters.offset ?? 0,
+        }),
+      }),
+    );
+  }
+
+  /** Admin-only: every account, in code order. */
+  listUsers(): Promise<UserSummary[]> {
+    return firstValueFrom(this.http.get<UserSummary[]>(`${API_BASE}/users`));
+  }
+
+  createUser(input: { email: string; name: string; role: Role; password: string }): Promise<UserSummary> {
+    return firstValueFrom(this.http.post<UserSummary>(`${API_BASE}/users`, input));
+  }
+
+  updateUser(userId: string, changes: { name?: string; role?: Role; is_active?: boolean }): Promise<UserSummary> {
+    return firstValueFrom(this.http.patch<UserSummary>(`${API_BASE}/users/${userId}`, changes));
+  }
+
+  resetUserPassword(userId: string, password: string): Promise<void> {
+    return firstValueFrom(this.http.post<void>(`${API_BASE}/users/${userId}/password`, { password }));
   }
 
   /** Every (daerah, negeri) pair any batch uses -- options for the records

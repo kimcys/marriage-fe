@@ -1,0 +1,164 @@
+<div class="flex flex-col gap-6">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div class="flex flex-col gap-1">
+      <h1 class="m-0 text-heading font-semibold text-ink">Users</h1>
+      <p class="m-0 text-body text-mid-gray">Add people, switch them between Admin and User, disable accounts and reset passwords. Only admins can see this page.</p>
+    </div>
+    <button
+      type="button"
+      class="h-9 rounded-buttons bg-ink px-3.5 text-body-sm font-medium text-surface-alt hover:bg-ink-soft"
+      (click)="toggleAddForm()"
+    >
+      {{ showAddForm() ? 'Cancel' : 'Add user' }}
+    </button>
+  </div>
+
+  @if (showAddForm()) {
+    <form class="flex flex-col gap-4 rounded-cards border border-hairline bg-paper p-5 shadow-card" (ngSubmit)="createUser()">
+      <span class="text-subheading font-semibold tracking-tight text-ink">New user</span>
+      <div class="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3">
+        <label class="flex flex-col gap-1.5">
+          <span class="text-body font-medium text-ink">Name</span>
+          <input type="text" name="name" [(ngModel)]="newName" autocomplete="off" class="h-9 rounded-inputs bg-canvas px-3.5 text-body text-ink" />
+        </label>
+        <label class="flex flex-col gap-1.5">
+          <span class="text-body font-medium text-ink">Email</span>
+          <input type="email" name="email" [(ngModel)]="newEmail" autocomplete="off" class="h-9 rounded-inputs bg-canvas px-3.5 text-body text-ink" />
+        </label>
+        <label class="flex flex-col gap-1.5">
+          <span class="text-body font-medium text-ink">Role</span>
+          <select name="role" [(ngModel)]="newRole" class="h-9 rounded-buttons bg-canvas px-3.5 text-body font-medium text-ink hover:bg-canvas-hover">
+            @for (option of roleOptions; track option[0]) {
+              <option [value]="option[0]">{{ option[1] }}</option>
+            }
+          </select>
+        </label>
+        <label class="flex flex-col gap-1.5">
+          <span class="text-body font-medium text-ink">Password <span class="font-normal text-mid-gray">(min {{ minPasswordLength }})</span></span>
+          <input type="password" name="password" [(ngModel)]="newPassword" autocomplete="new-password" class="h-9 rounded-inputs bg-canvas px-3.5 text-body text-ink" />
+        </label>
+      </div>
+      <p class="m-0 text-caption text-mid-gray">
+        Admins can see this page and the activity log, and delete things. Users can add batches and review records, but can't delete.
+      </p>
+      <div>
+        <button
+          type="submit"
+          class="h-9 rounded-buttons bg-ink px-3.5 text-body-sm font-medium text-surface-alt hover:bg-ink-soft disabled:cursor-not-allowed disabled:opacity-40"
+          [disabled]="!canCreate()"
+        >
+          {{ saving() ? 'Adding…' : 'Add user' }}
+        </button>
+      </div>
+    </form>
+  }
+
+  <div class="overflow-hidden rounded-cards border border-hairline bg-paper shadow-card">
+    @if (loading() && users().length === 0) {
+      <p class="p-5 text-body text-mid-gray">Loading…</p>
+    } @else {
+      <div class="overflow-x-auto">
+        <div class="min-w-[760px]">
+          <div class="grid grid-cols-[100px_minmax(0,1fr)_minmax(0,1.2fr)_90px_90px_120px_150px] gap-3 border-b border-hairline bg-surface-alt px-5 py-2">
+            <span class="text-caption font-medium uppercase tracking-wide text-mid-gray">Code</span>
+            <span class="text-caption font-medium uppercase tracking-wide text-mid-gray">Name</span>
+            <span class="text-caption font-medium uppercase tracking-wide text-mid-gray">Email</span>
+            <span class="text-caption font-medium uppercase tracking-wide text-mid-gray">Role</span>
+            <span class="text-caption font-medium uppercase tracking-wide text-mid-gray">Status</span>
+            <span class="text-caption font-medium uppercase tracking-wide text-mid-gray">Added</span>
+            <span class="text-right text-caption font-medium uppercase tracking-wide text-mid-gray">Actions</span>
+          </div>
+          @for (user of users(); track user.id) {
+            <div class="border-b border-hairline" [class.opacity-60]="!user.is_active">
+              <div class="grid grid-cols-[100px_minmax(0,1fr)_minmax(0,1.2fr)_90px_90px_120px_150px] items-center gap-3 px-5 py-3">
+                <span class="font-geist-mono text-body-sm text-ink">{{ user.code }}</span>
+                <span class="truncate text-body text-ink">
+                  {{ user.name ?? '—' }}
+                  @if (isSelf(user)) {
+                    <span class="text-caption text-mid-gray">(you)</span>
+                  }
+                </span>
+                <span class="truncate text-body-sm text-mid-gray" [title]="user.email">{{ user.email }}</span>
+                <span
+                  class="w-fit rounded-badges px-2 py-0.5 text-caption font-medium"
+                  [class]="user.role === 'ADMIN' ? 'bg-ink text-surface-alt' : 'bg-canvas text-ink-soft'"
+                >{{ roleLabel(user.role) }}</span>
+                <span
+                  class="w-fit rounded-badges px-2 py-0.5 text-caption font-medium"
+                  [class]="user.is_active ? 'bg-canvas text-ink-soft' : 'bg-error-bg text-error'"
+                >{{ user.is_active ? 'Active' : 'Disabled' }}</span>
+                <span class="font-geist-mono text-caption text-mid-gray">{{ user.created_at | date: 'd MMM y' }}</span>
+                <div class="flex items-center justify-end gap-1">
+                  <button
+                    type="button"
+                    class="h-7 rounded-buttons border border-hairline px-2.5 text-body-sm font-medium text-ink hover:bg-canvas"
+                    (click)="startEdit(user)"
+                  >
+                    {{ editingId() === user.id ? 'Close' : 'Edit' }}
+                  </button>
+                  @if (!isSelf(user)) {
+                    <button
+                      type="button"
+                      class="h-7 rounded-buttons px-2.5 text-body-sm font-medium hover:bg-canvas disabled:opacity-40"
+                      [class]="user.is_active ? 'text-ember' : 'text-ink'"
+                      [disabled]="saving()"
+                      (click)="toggleActive(user)"
+                    >
+                      {{ user.is_active ? 'Disable' : 'Enable' }}
+                    </button>
+                  }
+                </div>
+              </div>
+
+              @if (editingId() === user.id) {
+                <div class="flex flex-col gap-4 bg-surface-alt px-5 py-4">
+                  <div class="flex flex-wrap items-end gap-3">
+                    <label class="flex min-w-[220px] flex-1 flex-col gap-1.5">
+                      <span class="text-caption font-medium text-ink">Name</span>
+                      <input type="text" [(ngModel)]="editName" class="h-9 rounded-inputs bg-canvas px-3.5 text-body text-ink" />
+                    </label>
+                    <label class="flex flex-col gap-1.5">
+                      <span class="text-caption font-medium text-ink">Role</span>
+                      <select
+                        [(ngModel)]="editRole"
+                        [disabled]="isSelf(user)"
+                        [title]="isSelf(user) ? 'You can’t change your own role' : ''"
+                        class="h-9 rounded-buttons bg-canvas px-3.5 text-body font-medium text-ink hover:bg-canvas-hover disabled:opacity-50"
+                      >
+                        @for (option of roleOptions; track option[0]) {
+                          <option [value]="option[0]">{{ option[1] }}</option>
+                        }
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      class="h-9 rounded-buttons bg-ink px-3.5 text-body-sm font-medium text-surface-alt hover:bg-ink-soft disabled:opacity-40"
+                      [disabled]="saving()"
+                      (click)="saveEdit(user)"
+                    >
+                      Save
+                    </button>
+                  </div>
+                  <div class="flex flex-wrap items-end gap-3 border-t border-hairline pt-4">
+                    <label class="flex min-w-[220px] flex-1 flex-col gap-1.5">
+                      <span class="text-caption font-medium text-ink">New password <span class="font-normal text-mid-gray">(min {{ minPasswordLength }})</span></span>
+                      <input type="password" [(ngModel)]="editPassword" autocomplete="new-password" class="h-9 rounded-inputs bg-canvas px-3.5 text-body text-ink" />
+                    </label>
+                    <button
+                      type="button"
+                      class="h-9 rounded-buttons border border-hairline px-3.5 text-body-sm font-medium text-ink hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-40"
+                      [disabled]="saving() || editPassword.length < minPasswordLength"
+                      (click)="resetPassword(user)"
+                    >
+                      Set password
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</div>

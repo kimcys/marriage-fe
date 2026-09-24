@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 
+import { adminGuard } from './guards/admin.guard';
 import { authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
@@ -22,6 +23,16 @@ export const routes: Routes = [
     path: 'records',
     canActivate: [authGuard],
     loadComponent: () => import('./pages/records/records.page').then((m) => m.RecordsPage),
+  },
+  {
+    path: 'activity',
+    canActivate: [authGuard, adminGuard],
+    loadComponent: () => import('./pages/activity/activity.page').then((m) => m.ActivityPage),
+  },
+  {
+    path: 'users',
+    canActivate: [authGuard, adminGuard],
+    loadComponent: () => import('./pages/users/users.page').then((m) => m.UsersPage),
   },
   { path: '**', redirectTo: 'batches' },
 ];

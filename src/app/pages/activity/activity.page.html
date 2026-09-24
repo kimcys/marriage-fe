@@ -1,0 +1,155 @@
+<div class="flex flex-col gap-6">
+  <div class="flex flex-col gap-1">
+    <h1 class="m-0 text-heading font-semibold text-ink">Activity</h1>
+    <p class="m-0 text-body text-mid-gray">Who did what, and when. Only admins can see this page.</p>
+  </div>
+
+  <div class="overflow-hidden rounded-cards border border-hairline bg-paper shadow-card">
+    <div class="flex flex-wrap items-center gap-2 border-b border-hairline p-5">
+      <div class="flex flex-none items-center gap-2">
+        <span class="text-subheading font-semibold tracking-tight text-ink">Activity log</span>
+        <span class="rounded-buttons bg-canvas px-2 py-0.5 font-geist-mono text-caption font-medium text-ink-soft">{{ total() }}</span>
+      </div>
+      <div class="flex-1"></div>
+      <select
+        [(ngModel)]="userFilter"
+        (ngModelChange)="onFilterChanged()"
+        class="h-9 rounded-buttons bg-canvas px-3.5 text-body font-medium text-ink hover:bg-canvas-hover"
+      >
+        <option value="">Everyone</option>
+        @for (user of users(); track user.id) {
+          <option [value]="user.id">{{ user.code }}{{ user.name ? ' · ' + user.name : '' }}</option>
+        }
+      </select>
+      <select
+        [(ngModel)]="actionFilter"
+        (ngModelChange)="onFilterChanged()"
+        class="h-9 rounded-buttons bg-canvas px-3.5 text-body font-medium text-ink hover:bg-canvas-hover"
+      >
+        <option value="">All actions</option>
+        @for (option of actionOptions; track option[0]) {
+          <option [value]="option[0]">{{ option[1] }}</option>
+        }
+      </select>
+      <label class="flex items-center gap-1.5 text-caption text-mid-gray">
+        From
+        <input type="date" [(ngModel)]="fromDate" (ngModelChange)="onFilterChanged()" class="h-9 rounded-inputs bg-canvas px-2.5 text-body text-ink" />
+      </label>
+      <label class="flex items-center gap-1.5 text-caption text-mid-gray">
+        To
+        <input type="date" [(ngModel)]="toDate" (ngModelChange)="onFilterChanged()" class="h-9 rounded-inputs bg-canvas px-2.5 text-body text-ink" />
+      </label>
+      @if (hasFilters()) {
+        <button type="button" class="h-9 rounded-buttons px-3 text-body-sm font-medium text-mid-gray hover:bg-canvas" (click)="clearFilters()">
+          Clear
+        </button>
+      }
+    </div>
+
+    @if (loading() && entries().length === 0) {
+      <p class="p-5 text-body text-mid-gray">Loading…</p>
+    } @else if (entries().length === 0) {
+      <p class="p-5 text-body text-mid-gray">No activity matches this filter.</p>
+    } @else {
+      <div class="overflow-x-auto">
+        <div class="min-w-[760px]">
+          <div class="grid grid-cols-[150px_110px_190px_minmax(0,1fr)] gap-3 border-b border-hairline bg-surface-alt px-5 py-2">
+            <span class="text-caption font-medium uppercase tracking-wide text-mid-gray">When</span>
+            <span class="text-caption font-medium uppercase tracking-wide text-mid-gray">User</span>
+            <span class="text-caption font-medium uppercase tracking-wide text-mid-gray">Action</span>
+            <span class="text-caption font-medium uppercase tracking-wide text-mid-gray">What</span>
+          </div>
+          @for (entry of entries(); track entry.id) {
+            <div class="border-b border-hairline">
+              <div
+                class="grid grid-cols-[150px_110px_190px_minmax(0,1fr)] items-start gap-3 px-5 py-3"
+                [class.cursor-pointer]="hasDetails(entry)"
+                [class.hover:bg-surface-alt]="hasDetails(entry)"
+                (click)="hasDetails(entry) && toggle(entry)"
+              >
+                <span class="font-geist-mono text-caption text-mid-gray" [title]="entry.created_at">
+                  {{ entry.created_at | date: 'd MMM y, HH:mm' }}
+                </span>
+                <app-user-code class="w-fit text-body-sm text-ink" [code]="entry.user_code" [name]="userName(entry)" />
+                <span class="w-fit whitespace-nowrap rounded-badges px-2 py-0.5 text-caption font-medium" [class]="actionClasses(entry.action)">
+                  {{ actionLabel(entry.action) }}
+                </span>
+                <div class="flex min-w-0 flex-col gap-0.5">
+                  <span class="text-body text-ink">{{ entry.summary }}</span>
+                  <div class="flex flex-wrap items-center gap-2">
+                    @if (entry.target_label && entry.target_type !== 'batch') {
+                      <span class="truncate font-geist-mono text-caption text-mid-gray" [title]="entry.target_label">{{ entry.target_label }}</span>
+                    }
+                    @if (batchLinkable(entry)) {
+                      <a
+                        [routerLink]="['/batches', entry.batch_id]"
+                        class="text-caption font-medium text-ink-soft underline-offset-2 hover:underline"
+                        (click)="$event.stopPropagation()"
+                      >Open batch</a>
+                    }
+                    @if (hasDetails(entry)) {
+                      <span class="text-caption text-mid-gray">{{ expandedId() === entry.id ? 'Hide details' : 'Show details' }}</span>
+                    }
+                  </div>
+                </div>
+              </div>
+
+              @if (expandedId() === entry.id) {
+                <div class="flex flex-col gap-3 bg-surface-alt px-5 py-3">
+                  @if (changes(entry).length > 0) {
+                    <table class="w-full text-left text-body-sm">
+                      <thead>
+                        <tr class="text-caption uppercase tracking-wide text-mid-gray">
+                          <th class="py-1 pr-4 font-medium">Field</th>
+                          <th class="py-1 pr-4 font-medium">Before</th>
+                          <th class="py-1 font-medium">After</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (change of changes(entry); track change.field) {
+                          <tr class="align-top">
+                            <td class="py-1 pr-4 font-medium text-ink">{{ change.field }}</td>
+                            <td class="py-1 pr-4 text-mid-gray line-through decoration-mid-gray/50">{{ change.before }}</td>
+                            <td class="py-1 text-ink">{{ change.after }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  }
+                  @if (recordCount(entry) > 0) {
+                    <span class="text-body-sm text-ink">{{ recordCount(entry) }} record(s)</span>
+                  }
+                  @for (detail of otherDetails(entry); track detail.key) {
+                    <span class="text-body-sm"><span class="capitalize text-mid-gray">{{ detail.key }}:</span> <span class="text-ink">{{ detail.value }}</span></span>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between gap-3 px-5 py-3">
+        <span class="font-geist-mono text-caption text-mid-gray">{{ rangeLabel() }}</span>
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="h-8 rounded-buttons border border-hairline px-3 text-body-sm font-medium text-mid-gray hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-40"
+            [disabled]="offset() === 0"
+            (click)="previousPage()"
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            class="h-8 rounded-buttons bg-canvas px-3 text-body-sm font-medium text-ink hover:bg-canvas-hover disabled:cursor-not-allowed disabled:opacity-40"
+            [disabled]="!hasNextPage()"
+            (click)="nextPage()"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+</div>

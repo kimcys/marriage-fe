@@ -102,14 +102,15 @@
       <p class="p-5 text-body text-mid-gray">No batches yet. Create one above to get started.</p>
     } @else {
       <div class="overflow-x-auto">
-        <div class="min-w-[560px]">
-          <div class="grid grid-cols-[minmax(0,1fr)_150px_96px] gap-3 border-b border-hairline bg-surface-alt px-5 py-2">
+        <div class="min-w-[740px]">
+          <div class="grid grid-cols-[minmax(0,1fr)_180px_150px_96px] gap-3 border-b border-hairline bg-surface-alt px-5 py-2">
             <span class="text-caption font-medium uppercase tracking-wide text-mid-gray">Batch</span>
+            <span class="text-caption font-medium uppercase tracking-wide text-mid-gray">Added by</span>
             <span class="text-caption font-medium uppercase tracking-wide text-mid-gray">Status</span>
             <span class="text-right text-caption font-medium uppercase tracking-wide text-mid-gray">Actions</span>
           </div>
           @for (batch of batches(); track batch.id) {
-            <div class="grid grid-cols-[minmax(0,1fr)_150px_96px] items-center gap-3 border-b border-hairline px-5 py-3 hover:bg-surface-alt">
+            <div class="grid grid-cols-[minmax(0,1fr)_180px_150px_96px] items-center gap-3 border-b border-hairline px-5 py-3 hover:bg-surface-alt">
               <a [routerLink]="['/batches', batch.id]" class="flex min-w-0 flex-col text-ink">
                 <span class="truncate text-body font-medium text-ink">{{ batch.name }}</span>
                 @if (batch.description) {
@@ -119,6 +120,7 @@
                   <span class="truncate text-caption text-mid-gray">{{ batchLocation(batch) }}</span>
                 }
               </a>
+              <app-user-code class="w-fit text-body-sm text-ink" [code]="batch.created_by_code" [name]="batch.created_by_name" />
               <div>
                 <span class="whitespace-nowrap rounded-badges px-2 py-0.5 text-caption font-medium" [class]="statusClasses(batch.status)">
                   {{ batch.status }}

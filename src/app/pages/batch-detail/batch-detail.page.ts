@@ -24,6 +24,7 @@ import {
 } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
+import { UserCodeComponent } from '../../components/user-code/user-code.component';
 
 type StatusFilter<T extends string> = T | 'ALL';
 
@@ -58,7 +59,7 @@ function isRefetching(file: SkippedFile): boolean {
 
 @Component({
   selector: 'app-batch-detail',
-  imports: [FormsModule, RouterLink, ScrollingModule, RecordsTableComponent],
+  imports: [FormsModule, RouterLink, ScrollingModule, RecordsTableComponent, UserCodeComponent],
   templateUrl: './batch-detail.page.html',
 })
 export class BatchDetailPage implements OnInit, OnDestroy {

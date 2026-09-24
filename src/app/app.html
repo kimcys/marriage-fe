@@ -36,6 +36,26 @@
             <span class="block h-[5px] w-[5px] rounded-full bg-current"></span>
             Records
           </a>
+          @if (auth.isAdmin()) {
+            <a
+              routerLink="/activity"
+              routerLinkActive="bg-canvas font-medium text-ink"
+              [routerLinkActiveOptions]="{ exact: false }"
+              class="flex items-center gap-2 rounded-buttons px-3 py-2 text-body text-mid-gray hover:bg-canvas-hover"
+            >
+              <span class="block h-[5px] w-[5px] rounded-full bg-current"></span>
+              Activity
+            </a>
+            <a
+              routerLink="/users"
+              routerLinkActive="bg-canvas font-medium text-ink"
+              [routerLinkActiveOptions]="{ exact: false }"
+              class="flex items-center gap-2 rounded-buttons px-3 py-2 text-body text-mid-gray hover:bg-canvas-hover"
+            >
+              <span class="block h-[5px] w-[5px] rounded-full bg-current"></span>
+              Users
+            </a>
+          }
         </nav>
       </div>
 

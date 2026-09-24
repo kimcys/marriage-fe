@@ -7,12 +7,13 @@ import { KNOWN_DAERAH, negeriForDaerah } from '../../core/geography';
 import { ApiService, BatchResponse, BatchStatsResponse } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
+import { UserCodeComponent } from '../../components/user-code/user-code.component';
 
 const PAGE_SIZE = 20;
 
 @Component({
   selector: 'app-batch-list',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, UserCodeComponent],
   templateUrl: './batch-list.page.html',
 })
 export class BatchListPage implements OnInit {
