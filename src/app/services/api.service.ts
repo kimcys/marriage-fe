@@ -345,6 +345,19 @@ export class ApiService {
     );
   }
 
+  /** Re-runs auto-classification in the background over a FETCHED
+   * submission's CLASSIFY_FAILED / NEEDS_MANUAL_CLASSIFICATION skipped
+   * files, ingesting whichever now route. The submission is FETCHING until
+   * that finishes. */
+  reclassifySkippedFiles(batchId: string, submissionId: string): Promise<OneDriveSubmissionResponse> {
+    return firstValueFrom(
+      this.http.post<OneDriveSubmissionResponse>(
+        `${API_BASE}/batches/${batchId}/onedrive-links/${submissionId}/skipped-files/reclassify`,
+        {},
+      ),
+    );
+  }
+
   /** Deletes one OneDrive link and everything it caused to be ingested --
    * its documents, jobs, and records -- irreversibly. The batch itself and
    * anything ingested by its other links are untouched. */

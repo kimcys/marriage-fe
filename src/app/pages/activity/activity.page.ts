@@ -19,6 +19,7 @@ export const ACTIVITY_ACTION_LABELS: Record<string, string> = {
   'batch.deleted': 'Deleted batch',
   'onedrive.link_submitted': 'Submitted OneDrive link',
   'onedrive.link_retried': 'Retried OneDrive link',
+  'onedrive.skipped_reclassified': 'Reclassified skipped files',
   'onedrive.link_deleted': 'Deleted OneDrive link',
   'skipped_file.classified': 'Classified skipped file',
   'record.corrected': 'Corrected record',

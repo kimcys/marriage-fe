@@ -53,6 +53,9 @@ function busySubmissionWork(submissions: OneDriveSubmissionResponse[]): number {
   );
 }
 
+/** Mirrors the backend's _RECLASSIFIABLE_STATUSES (onedrive/service.py). */
+const RECLASSIFIABLE_SKIP_STATUSES = ['CLASSIFY_FAILED', 'NEEDS_MANUAL_CLASSIFICATION'];
+
 function isRefetching(file: SkippedFile): boolean {
   return file.refetch_status === 'QUEUED' || file.refetch_status === 'IN_PROGRESS';
 }
@@ -299,6 +302,31 @@ export class BatchDetailPage implements OnInit, OnDestroy {
       await this.loadOneDriveSubmissions();
       this.startPolling();
       this.toast.success('Retrying link.');
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  /** Skipped files a reclassify would re-run auto-classification on. */
+  reclassifiableCount(submission: OneDriveSubmissionResponse): number {
+    if (submission.status !== 'FETCHED') {
+      return 0;
+    }
+    return (submission.skipped_files ?? []).filter(
+      (f) => RECLASSIFIABLE_SKIP_STATUSES.includes(f.status) && !isRefetching(f),
+    ).length;
+  }
+
+  /** Re-runs auto-classification over a fetched link's skipped files --
+   * the recovery path when classify itself was broken during the original
+   * fetch (retry only covers FAILED links). Routable files turn into jobs;
+   * the rest stay skipped with their new status. */
+  async reclassifySkippedFiles(submission: OneDriveSubmissionResponse): Promise<void> {
+    try {
+      await this.api.reclassifySkippedFiles(this.batchId, submission.id);
+      await this.loadOneDriveSubmissions();
+      this.startPolling();
+      this.toast.success('Reclassifying skipped files in the background.');
     } catch (error) {
       this.handleError(error);
     }

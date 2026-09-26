@@ -151,6 +151,16 @@
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.64-6.36L2 9" /><path d="M2 4v5h5" /></svg>
                   </button>
                 }
+                @if (reclassifiableCount(submission) > 0) {
+                  <button
+                    type="button"
+                    class="h-7 whitespace-nowrap rounded-buttons bg-canvas px-2 text-caption font-medium text-ink hover:bg-canvas-hover"
+                    title="Re-run auto-classification on the skipped files"
+                    (click)="reclassifySkippedFiles(submission)"
+                  >
+                    Reclassify {{ reclassifiableCount(submission) }} skipped
+                  </button>
+                }
                 @if (auth.isAdmin()) {
                   <button type="button" class="text-caption text-mid-gray hover:text-ember" (click)="deleteOneDriveSubmission(submission)">
                     Delete
@@ -172,7 +182,7 @@
                         Re-downloading this file from OneDrive…
                       </span>
                     </div>
-                  } @else if (skipped.classifiable) {
+                  } @else if (skipped.classifiable && submission.status === 'FETCHED') {
                     <div class="flex flex-wrap items-center gap-2 rounded-nested border border-hairline bg-surface-alt px-3 py-2">
                       <span class="font-geist-mono text-caption text-ink">{{ skipped.filename }}</span>
                       <span class="whitespace-nowrap rounded-badges bg-warning-bg px-2 py-0.5 text-caption text-warning">{{ skipped.status }}</span>
