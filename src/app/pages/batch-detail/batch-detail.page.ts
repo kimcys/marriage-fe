@@ -307,6 +307,9 @@ export class BatchDetailPage implements OnInit, OnDestroy {
     }
   }
 
+  /** Reclassify is hidden in the UI for now; the backend endpoint stays live. */
+  protected readonly showReclassifyButton = false;
+
   /** Skipped files a reclassify would re-run auto-classification on. */
   reclassifiableCount(submission: OneDriveSubmissionResponse): number {
     if (submission.status !== 'FETCHED') {
