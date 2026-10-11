@@ -37,6 +37,14 @@
         <option value="APPROVED">Complete</option>
       </select>
       <select
+        [(ngModel)]="sortOrder"
+        (ngModelChange)="onFilterChanged()"
+        class="h-9 rounded-buttons bg-canvas px-3.5 text-body font-medium text-ink hover:bg-canvas-hover"
+      >
+        <option value="newest">Newest first</option>
+        <option value="worst_first">Most issues first</option>
+      </select>
+      <select
         [(ngModel)]="negeriFilter"
         (ngModelChange)="onNegeriChanged()"
         class="h-9 rounded-buttons bg-canvas px-3.5 text-body font-medium text-ink hover:bg-canvas-hover"

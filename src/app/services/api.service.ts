@@ -25,6 +25,8 @@ export type DocumentType =
   | 'TYPED_RUJUK_MODERN';
 export type JobStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 export type RecordStatus = 'PENDING_REVIEW' | 'APPROVED';
+/** newest first, or review order: most missing fields / issues and lowest confidence first. */
+export type RecordSort = 'newest' | 'worst_first';
 export type RecordType = 'NIKAH' | 'CERAI' | 'RUJUK';
 export type ExportStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
 export type ExportFormat = 'CSV' | 'XLSX';
@@ -444,6 +446,7 @@ export class ApiService {
       recordType?: RecordType;
       daerah?: string;
       negeri?: string;
+      sort?: RecordSort;
       limit?: number;
       offset?: number;
     } = {},
@@ -458,6 +461,7 @@ export class ApiService {
           record_type: filters.recordType,
           daerah: filters.daerah,
           negeri: filters.negeri,
+          sort: filters.sort,
           limit: filters.limit ?? 20,
           offset: filters.offset ?? 0,
         }),

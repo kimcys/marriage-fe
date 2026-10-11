@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 
 import { EditableRecord, RecordsTableComponent } from '../../components/records-table/records-table.component';
 import { ApiClientError } from '../../core/api-error';
-import { ApiService, RecordLocation, RecordResponse, RecordStatus, RecordType } from '../../services/api.service';
+import { ApiService, RecordLocation, RecordResponse, RecordSort, RecordStatus, RecordType } from '../../services/api.service';
 import { ToastService } from '../../services/toast.service';
 
 const RECORDS_PAGE_SIZE = 20;
@@ -29,6 +29,7 @@ export class RecordsPage implements OnInit, OnDestroy {
   protected readonly pageSize = RECORDS_PAGE_SIZE;
   protected typeFilter: StatusFilter<RecordType> = 'ALL';
   protected statusFilter: StatusFilter<RecordStatus> = 'ALL';
+  protected sortOrder: RecordSort = 'newest';
   protected query = '';
   protected negeriFilter = '';
   protected daerahFilter = '';
@@ -144,6 +145,7 @@ export class RecordsPage implements OnInit, OnDestroy {
         recordType: this.typeFilter === 'ALL' ? undefined : this.typeFilter,
         negeri: this.negeriFilter || undefined,
         daerah: this.daerahFilter || undefined,
+        sort: this.sortOrder,
         q: this.query.trim() || undefined,
         limit: this.pageSize,
         offset,

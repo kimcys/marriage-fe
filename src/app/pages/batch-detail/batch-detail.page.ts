@@ -20,6 +20,7 @@ import {
   SkippedFile,
   OneDriveSubmissionStatus,
   RecordResponse,
+  RecordSort,
   RecordStatus,
 } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
@@ -134,6 +135,7 @@ export class BatchDetailPage implements OnInit, OnDestroy {
   protected readonly batchRecordsOffset = signal(0);
   protected readonly batchRecordsLoading = signal(false);
   protected batchRecordsStatusFilter: StatusFilter<RecordStatus> = 'PENDING_REVIEW';
+  protected batchRecordsSort: RecordSort = 'newest';
   protected batchRecordsQuery = '';
   protected batchRecordsSourceUrl = '';
   protected readonly batchRecordsPageSize = RECORDS_PAGE_SIZE;
@@ -688,6 +690,7 @@ export class BatchDetailPage implements OnInit, OnDestroy {
         status: this.batchRecordsStatusFilter === 'ALL' ? undefined : this.batchRecordsStatusFilter,
         q: this.batchRecordsQuery.trim() || undefined,
         sourceUrl: this.batchRecordsSourceUrl || undefined,
+        sort: this.batchRecordsSort,
         limit: this.batchRecordsPageSize,
         offset,
       });
