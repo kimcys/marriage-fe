@@ -172,7 +172,7 @@
               <p class="mt-1 text-caption text-error">{{ submission.error.message }}</p>
             }
             @if (submission.skipped_files && submission.skipped_files.length > 0) {
-              <div class="mt-2 flex flex-col gap-1.5">
+              <div class="mt-2 flex max-h-64 flex-col gap-1.5 overflow-y-auto pr-1">
                 @for (skipped of submission.skipped_files; track skipped.filename) {
                   @if (isRefetching(skipped)) {
                     <div class="flex flex-wrap items-center gap-2 rounded-nested border border-hairline bg-surface-alt px-3 py-2">
