@@ -210,6 +210,7 @@ export interface OneDriveSubmissionResponse {
   id: string;
   batch_id: string;
   url: string;
+  title: string | null;
   status: OneDriveSubmissionStatus;
   skipped_files: SkippedFile[] | null;
   created_at: string;

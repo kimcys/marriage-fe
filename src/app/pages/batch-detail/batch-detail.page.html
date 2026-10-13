@@ -136,7 +136,17 @@
         @for (submission of oneDriveSubmissions(); track submission.id) {
           <div class="py-3">
             <div class="flex flex-wrap items-center justify-between gap-2">
-              <span class="truncate font-geist-mono text-body-sm text-ink" [title]="submission.url">{{ submission.url }}</span>
+              <div class="flex min-w-0 flex-col">
+                @if (submission.title) {
+                  <span class="truncate text-body-sm font-medium text-ink" [title]="submission.title">{{ submission.title }}</span>
+                }
+                <span
+                  class="truncate font-geist-mono"
+                  [class]="submission.title ? 'text-caption text-mid-gray' : 'text-body-sm text-ink'"
+                  [title]="submission.url"
+                  >{{ submission.url }}</span
+                >
+              </div>
               <div class="flex flex-none items-center gap-2">
                 <span class="whitespace-nowrap rounded-badges px-2 py-0.5 text-caption font-medium" [class]="statusClasses(submission.status)">
                   {{ submission.status }}
