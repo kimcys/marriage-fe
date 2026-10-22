@@ -87,7 +87,6 @@ The contract is `../marriage-be/docs/frontend-integration.md` and `../marriage-b
   until it is added here. Nikah intentionally omits several raw/duplicate columns (see the comment in that file).
 - `DocumentType` / `DOCUMENT_TYPE_LABELS` must cover every backend `DocumentType` value, including the legacy
   `TYPED_BORANG_4B`.
-- The backend docs mention an upload endpoint that no longer exists; trust the code and the backend README.
 
 ## 6. Design system (see DESIGN.md before touching visuals)
 

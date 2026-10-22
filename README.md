@@ -1,59 +1,28 @@
 # MarriageFe
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.1.4.
+Staff web UI for the Marriage OCR system: create batches, submit OneDrive share links, review and correct extracted
+records, and export CSV/XLSX. Built with Angular 22 and Tailwind CSS 4; it talks to the FastAPI backend in
+[`marriage-be`](https://github.com/kimcys/marriage-be). See `AGENTS.md` for architecture and conventions and `DESIGN.md`
+for the design tokens.
 
-## Development server
+## Development
 
-To start a local development server, run:
-
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+Requires Node 24.x. Start the backend first (API on `http://localhost:8000`), then:
 
 ```bash
-ng generate component component-name
+npm install
+npm start          # ng serve, http://localhost:4200
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+The API base URL comes from `src/environments/environment.ts` (dev) and `environment.prod.ts` (production build).
+
+## Build and test
 
 ```bash
-ng generate --help
+npm run build      # production build into dist/
+npm test           # Vitest via ng test
+npx prettier --check "src/**/*.{ts,html,css}"
 ```
 
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+This project was generated with [Angular CLI](https://github.com/angular/angular-cli) 22.1.4; see the
+[Angular CLI reference](https://angular.dev/tools/cli) for `ng generate` and other commands.
